@@ -40,7 +40,30 @@ jobs:
           # MSM8916 image recipes invoke these host tools directly.
           command -v mkbootimg
           command -v img2simg
+          # Ubuntu bug 2058228: the optional GKI signer is absent in Noble.
+          # Defer its import; legacy v0 images do not use GKI signing.
+          sudo python3 - <<'PY'
+          from pathlib import Path
+          source = Path('/usr/bin/mkbootimg').read_text()
+          old = 'from gki.generate_gki_certificate import generate_gki_certificate'
+          new = '''def generate_gki_certificate(*args, **kwargs):
+              from gki.generate_gki_certificate import generate_gki_certificate as generate
+              return generate(*args, **kwargs)'''
+          if source.count(old) != 1:
+              raise SystemExit('Unexpected mkbootimg source; review Ubuntu workaround')
+          tool = Path('/usr/local/bin/mkbootimg')
+          tool.write_text(source.replace(old, new))
+          tool.chmod(0o755)
+          PY
+          hash -r
           mkbootimg --help > /dev/null
+          probe=$(mktemp -d)
+          dd if=/dev/zero of="$probe/kernel" bs=4096 count=1
+          mkbootimg --kernel "$probe/kernel" --ramdisk /dev/null --cmdline "root=/dev/mmcblk0p14 rw rootwait" -o "$probe/boot.img"
+          test "$(head -c 8 "$probe/boot.img")" = 'ANDROID!'
+          img2simg "$probe/kernel" "$probe/sparse.img"
+          simg2img "$probe/sparse.img" "$probe/roundtrip"
+          cmp "$probe/kernel" "$probe/roundtrip"
           df -h
           free -h
           sudo install -d -o "$USER" -g "$(id -gn)" "$BUILD_DIR"
