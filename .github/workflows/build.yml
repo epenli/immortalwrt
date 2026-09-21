@@ -20,6 +20,9 @@ jobs:
     env:
       DEBIAN_FRONTEND: noninteractive
       BUILD_DIR: /mnt/ufi-openwrt
+      CCACHE_DIR: /mnt/ufi-cache/ccache
+      CCACHE_MAXSIZE: 3G
+      CCACHE_COMPILERCHECK: content
 
     steps:
       - name: Checkout build recipe
@@ -29,7 +32,7 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y --no-install-recommends \
-            build-essential clang flex bison g++ gawk gcc-multilib g++-multilib \
+            build-essential clang flex bison g++ gawk gcc-multilib g++-multilib e2fsprogs bsdextrautils \
             gettext git libncurses-dev libssl-dev python3 python3-setuptools \
             python3-pyelftools rsync swig unzip zlib1g-dev file wget curl \
             ca-certificates xz-utils zstd libelf-dev ccache cmake ninja-build \
@@ -67,7 +70,27 @@ jobs:
           df -h
           free -h
           sudo install -d -o "$USER" -g "$(id -gn)" "$BUILD_DIR"
+          sudo install -d -o "$USER" -g "$(id -gn)" "$CCACHE_DIR"
           mkdir -p "$GITHUB_WORKSPACE/logs" "$GITHUB_WORKSPACE/artifacts"
+
+      - name: Restore source download cache
+        continue-on-error: true
+        uses: actions/cache/restore@caa296126883cff596d87d8935842f9db880ef25 # v5
+        with:
+          path: /mnt/ufi-openwrt/dl
+          key: ufi-dl-v1-${{ runner.os }}-${{ hashFiles('source.json', 'feeds.conf') }}-${{ github.run_id }}-${{ github.run_attempt }}
+          restore-keys: |
+            ufi-dl-v1-${{ runner.os }}-${{ hashFiles('source.json', 'feeds.conf') }}-
+            ufi-dl-v1-${{ runner.os }}-
+
+      - name: Restore compiler cache
+        continue-on-error: true
+        uses: actions/cache/restore@caa296126883cff596d87d8935842f9db880ef25 # v5
+        with:
+          path: /mnt/ufi-cache/ccache
+          key: ufi-ccache-v1-ubuntu24-msm8916-${{ hashFiles('source.json', 'feeds.conf') }}-${{ github.run_id }}-${{ github.run_attempt }}
+          restore-keys: |
+            ufi-ccache-v1-ubuntu24-msm8916-${{ hashFiles('source.json', 'feeds.conf') }}-
 
       - name: Fetch pinned source
         run: |
@@ -97,9 +120,13 @@ jobs:
           done > "$GITHUB_WORKSPACE/artifacts/feed-commits.txt"
 
       - name: Download sources
+        id: download
         run: |
           cd "$BUILD_DIR"
           make download -j8 V=s 2>&1 | tee "$GITHUB_WORKSPACE/logs/download.log"
+
+      - name: Test upgrade safeguards using disposable files
+        run: python3 scripts/test-upgrade.py
 
       - name: Compile firmware
         id: compile
@@ -147,6 +174,14 @@ jobs:
           if pathlib.Path('bin/packages').is_dir():
               shutil.copytree('bin/packages', out / 'packages', dirs_exist_ok=True)
           PY
+          firmware="$GITHUB_WORKSPACE/artifacts/firmware"
+          simg2img "$firmware"/*-openstick-ufi003-ext4-system.img "$BUILD_DIR/ufi-root.raw"
+          python3 "$GITHUB_WORKSPACE/scripts/pack-upgrade.py" \
+            --boot "$firmware"/*-openstick-ufi003-ext4-boot.img \
+            --root "$BUILD_DIR/ufi-root.raw" \
+            --output "$firmware/immortalwrt-openstick-ufi003-ext4-sysupgrade.bin" \
+            --fwtool "$BUILD_DIR/staging_dir/host/bin/fwtool"
+          rm "$BUILD_DIR/ufi-root.raw"
           cd "$GITHUB_WORKSPACE/artifacts"
           find . -type f ! -name SHA256SUMS -print0 | sort -z | xargs -0 sha256sum > SHA256SUMS
 
@@ -159,6 +194,29 @@ jobs:
           retention-days: 14
           if-no-files-found: error
           compression-level: 1
+
+      - name: Save verified source downloads
+        continue-on-error: true
+        if: always() && !cancelled() && steps.download.outcome == 'success'
+        uses: actions/cache/save@caa296126883cff596d87d8935842f9db880ef25 # v5
+        with:
+          path: /mnt/ufi-openwrt/dl
+          key: ufi-dl-v1-${{ runner.os }}-${{ hashFiles('source.json', 'feeds.conf') }}-${{ github.run_id }}-${{ github.run_attempt }}
+
+      - name: Record compiler cache statistics
+        if: always() && !cancelled() && steps.compile.outcome != 'skipped'
+        run: |
+          if [ -x "$BUILD_DIR/staging_dir/host/bin/ccache" ]; then
+            "$BUILD_DIR/staging_dir/host/bin/ccache" --show-stats | tee "$GITHUB_WORKSPACE/logs/ccache.log"
+          fi
+
+      - name: Save compiler cache for subsequent builds
+        continue-on-error: true
+        if: always() && !cancelled() && steps.compile.outcome != 'skipped'
+        uses: actions/cache/save@caa296126883cff596d87d8935842f9db880ef25 # v5
+        with:
+          path: /mnt/ufi-cache/ccache
+          key: ufi-ccache-v1-ubuntu24-msm8916-${{ hashFiles('source.json', 'feeds.conf') }}-${{ github.run_id }}-${{ github.run_attempt }}
 
       - name: Preserve unvalidated outputs if collection fails
         if: failure() && steps.compile.outcome == 'success'
