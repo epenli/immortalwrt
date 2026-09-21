@@ -1,0 +1,133 @@
+name: Build UFI clean firmware
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ufi-build-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 350
+    defaults:
+      run:
+        shell: bash
+    env:
+      DEBIAN_FRONTEND: noninteractive
+      BUILD_DIR: /mnt/ufi-openwrt
+
+    steps:
+      - name: Checkout build recipe
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Install build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            build-essential clang flex bison g++ gawk gcc-multilib g++-multilib \
+            gettext git libncurses-dev libssl-dev python3 python3-setuptools \
+            python3-pyelftools rsync swig unzip zlib1g-dev file wget curl \
+            ca-certificates xz-utils zstd libelf-dev ccache cmake ninja-build \
+            pkgconf bzip2 patch perl time autoconf automake libtool \
+            libglib2.0-dev intltool mtools dosfstools liblzma-dev \
+            u-boot-tools device-tree-compiler libfdt-dev libarchive-tools \
+            liblzo2-dev help2man gperf
+          df -h
+          free -h
+          sudo install -d -o "$USER" -g "$(id -gn)" "$BUILD_DIR"
+          mkdir -p "$GITHUB_WORKSPACE/logs" "$GITHUB_WORKSPACE/artifacts"
+
+      - name: Fetch pinned source
+        run: |
+          repo=$(python3 -c 'import json; print(json.load(open("source.json"))["repository"])')
+          commit=$(python3 -c 'import json; print(json.load(open("source.json"))["commit"])')
+          git -C "$BUILD_DIR" init
+          git -C "$BUILD_DIR" remote add origin "$repo"
+          git -C "$BUILD_DIR" fetch --depth 1 origin "$commit"
+          git -C "$BUILD_DIR" checkout --detach FETCH_HEAD
+          test "$(git -C "$BUILD_DIR" rev-parse HEAD)" = "$commit"
+          cp feeds.conf "$BUILD_DIR/feeds.conf.default"
+          cp source.json "$GITHUB_WORKSPACE/artifacts/source.json"
+          cp feeds.conf "$GITHUB_WORKSPACE/artifacts/feeds.conf"
+
+      - name: Install pinned feeds and expand configuration
+        run: |
+          cd "$BUILD_DIR"
+          ./scripts/feeds update -a 2>&1 | tee "$GITHUB_WORKSPACE/logs/feeds-update.log"
+          ./scripts/feeds install -a 2>&1 | tee "$GITHUB_WORKSPACE/logs/feeds-install.log"
+          python3 "$GITHUB_WORKSPACE/scripts/prepare.py" "$BUILD_DIR"
+          make defconfig 2>&1 | tee "$GITHUB_WORKSPACE/logs/defconfig.log"
+          python3 "$GITHUB_WORKSPACE/scripts/check-config.py" .config
+          cp .config "$GITHUB_WORKSPACE/artifacts/expanded.config"
+          ./scripts/diffconfig.sh > "$GITHUB_WORKSPACE/artifacts/diffconfig"
+          for feed in openstick packages luci routing telephony video; do
+            printf '%s %s\n' "$feed" "$(git -C "feeds/$feed" rev-parse HEAD)"
+          done > "$GITHUB_WORKSPACE/artifacts/feed-commits.txt"
+
+      - name: Download sources
+        run: |
+          cd "$BUILD_DIR"
+          make download -j8 2>&1 | tee "$GITHUB_WORKSPACE/logs/download.log"
+
+      - name: Compile firmware
+        run: |
+          cd "$BUILD_DIR"
+          make -j"$(nproc)" 2>&1 | tee "$GITHUB_WORKSPACE/logs/build.log" || {
+            echo 'Parallel build failed; retrying once with detailed output.'
+            make -j1 V=s 2>&1 | tee "$GITHUB_WORKSPACE/logs/build-retry.log"
+          }
+
+      - name: Collect images and matching packages
+        run: |
+          cd "$BUILD_DIR"
+          python3 - <<'PY'
+          import pathlib, shutil, os, struct
+          target = pathlib.Path('bin/targets/msm89xx/msm8916')
+          boot = list(target.glob('*ufi003*boot.img'))
+          rootfs = list(target.glob('*ufi003*system.img'))
+          if len(boot) != 1 or len(rootfs) != 1:
+              raise SystemExit('Expected exactly one UFI003 boot.img and system.img')
+          if boot[0].stat().st_size > 64 * 1024 * 1024:
+              raise SystemExit('boot.img exceeds the observed 64 MiB boot partition')
+          with boot[0].open('rb') as f:
+              if f.read(8) != b'ANDROID!':
+                  raise SystemExit('Unexpected boot image header')
+          with rootfs[0].open('rb') as f:
+              header = f.read(28)
+          magic, major, minor, fh, ch, block_size, blocks, chunks, checksum = struct.unpack('<IHHHHIIII', header)
+          if magic != 0xED26FF3A or major != 1:
+              raise SystemExit('Expected an Android sparse system.img')
+          if block_size * blocks > 3487727 * 1024:
+              raise SystemExit('Expanded system.img exceeds the observed rootfs partition')
+          out = pathlib.Path(os.environ['GITHUB_WORKSPACE']) / 'artifacts'
+          shutil.copytree(target, out / 'firmware', dirs_exist_ok=True)
+          # Preserve matching package versions; avoid mixing with a moving snapshot feed.
+          if pathlib.Path('bin/packages').is_dir():
+              shutil.copytree('bin/packages', out / 'packages', dirs_exist_ok=True)
+          PY
+          cd "$GITHUB_WORKSPACE/artifacts"
+          find . -type f ! -name SHA256SUMS -print0 | sort -z | xargs -0 sha256sum > SHA256SUMS
+
+      - name: Upload firmware and reproducibility metadata
+        if: success()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: ufi003-clean-${{ github.run_number }}
+          path: artifacts/
+          retention-days: 14
+          if-no-files-found: error
+          compression-level: 1
+
+      - name: Upload build logs even after failure
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: ufi003-build-logs-${{ github.run_number }}
+          path: logs/
+          retention-days: 14
+          if-no-files-found: warn

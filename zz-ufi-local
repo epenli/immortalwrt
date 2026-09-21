@@ -1,0 +1,13 @@
+#!/bin/sh
+# Run after the board's own OpenStick defaults. No personal settings or passwords.
+uci set system.@system[0].hostname='UFI-Clean'
+uci set luci.main.lang='zh_cn'
+# Keep USB RNDIS networking for Windows. Disable the optional ADB endpoint.
+if uci -q get gc.config >/dev/null; then
+    uci set gc.config.adb='0'
+    uci set gc.config.rndis='1'
+    uci commit gc
+fi
+uci commit system
+uci commit luci
+exit 0
