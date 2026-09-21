@@ -1,7 +1,11 @@
 #!/bin/sh
 # Run after the board's own OpenStick defaults. No personal settings or passwords.
+if [ ! -e /etc/ufi-config-restored ]; then
 uci set system.@system[0].hostname='UFI-Clean'
 uci set luci.main.lang='zh_cn'
+uci set network.lan.ipaddr='192.168.31.1'
+uci set network.lan.netmask='255.255.255.0'
+uci commit network
 # Keep USB RNDIS networking for Windows. Disable the optional ADB endpoint.
 if uci -q get gc.config >/dev/null; then
     uci set gc.config.adb='0'
@@ -10,6 +14,7 @@ if uci -q get gc.config >/dev/null; then
 fi
 uci commit system
 uci commit luci
+fi
 # These community feeds are not published on the official snapshot server.
 # Matching hardware/kernel packages remain in this build's downloadable artifact.
 feeds=/etc/apk/repositories.d/distfeeds.list
@@ -20,4 +25,5 @@ if [ -f "$feeds" ]; then
         -e '\|^https://downloads.immortalwrt.org/snapshots/packages/aarch64_generic/video/packages.adb$|s|^|# Unpublished community feed: |' \
         "$feeds"
 fi
+rm -f /etc/ufi-config-restored
 exit 0
