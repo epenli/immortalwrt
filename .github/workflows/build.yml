@@ -36,7 +36,11 @@ jobs:
             pkgconf bzip2 patch perl time autoconf automake libtool \
             libglib2.0-dev intltool mtools dosfstools liblzma-dev \
             u-boot-tools device-tree-compiler libfdt-dev libarchive-tools \
-            liblzo2-dev help2man gperf
+            liblzo2-dev help2man gperf mkbootimg android-sdk-libsparse-utils
+          # MSM8916 image recipes invoke these host tools directly.
+          command -v mkbootimg
+          command -v img2simg
+          mkbootimg --help > /dev/null
           df -h
           free -h
           sudo install -d -o "$USER" -g "$(id -gn)" "$BUILD_DIR"
