@@ -10,4 +10,14 @@ if uci -q get gc.config >/dev/null; then
 fi
 uci commit system
 uci commit luci
+# These community feeds are not published on the official snapshot server.
+# Matching hardware/kernel packages remain in this build's downloadable artifact.
+feeds=/etc/apk/repositories.d/distfeeds.list
+if [ -f "$feeds" ]; then
+    sed -i \
+        -e '\|^https://downloads.immortalwrt.org/snapshots/targets/msm89xx/msm8916/packages/packages.adb$|s|^|# Unpublished community feed: |' \
+        -e '\|^https://downloads.immortalwrt.org/snapshots/packages/aarch64_generic/openstick/packages.adb$|s|^|# Unpublished community feed: |' \
+        -e '\|^https://downloads.immortalwrt.org/snapshots/packages/aarch64_generic/video/packages.adb$|s|^|# Unpublished community feed: |' \
+        "$feeds"
+fi
 exit 0
