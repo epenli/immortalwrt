@@ -40,8 +40,19 @@ start = original.index('# set dns\n')
 end = original.index('# restart network\n', start)
 # Use DHCP/carrier-provided DNS instead of an upstream hard-coded resolver list.
 updated = original[:start] + original[end:]
+updated = updated.replace('# bind usb0 to br-lan',
+    '[ -e /etc/ufi-config-restored ] && exit 0\n\n# bind usb0 to br-lan', 1)
 updated = updated.replace('apk del openstick-tweaks', '# Keep package metadata for reproducible inspection.')
 tweak.write_text(updated)
+# Only the flash page needs a longer client timeout for hashing the uploaded
+# compressed image on this A53. Full raw hashing runs later outside RPC.
+flash = source / 'feeds/luci/modules/luci-mod-system/htdocs/luci-static/resources/view/system/flash.js'
+text = flash.read_text()
+needle = "const callSystemValidateFirmwareImage = rpc.declare({"
+if text.count(needle) != 1:
+    raise SystemExit('Unexpected LuCI flash view; review timeout adaptation')
+flash.write_text(text.replace(needle,
+    "L.env.rpctimeout = Math.max(L.env.rpctimeout || 20, 180);\n\n" + needle))
 shutil.copyfile(recipe / 'config.seed', source / '.config')
 shutil.copytree(recipe / 'files', source / 'files', dirs_exist_ok=True)
 (source / 'files/etc/uci-defaults/zz-ufi-local').chmod(0o755)
