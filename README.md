@@ -1,0 +1,68 @@
+# UF1003 MB V02 精简固件云编译
+
+这是可放入 GitHub 仓库的构建文件，**不是已经编译完成的固件**。截至 2026-09-21，已核对设备信息和上游配置，尚未在 GitHub 实际编译，也未进行刷机、启动或联网验证。
+
+## 源码与板型
+
+- 源码：[lkiuyu/immortalwrt](https://github.com/lkiuyu/immortalwrt)，社区适配分支 `master`。
+- 固定提交：`05d3cf2aff0bfc8ec0abdaf057215fc8504b378c`（2026-06-23，当次检查时该分支的最新提交）。
+- 目标：`msm89xx/msm8916`；配置：`openstick-ufi003`；源码设置的内核系列：6.18。
+- 该配置继承 UFI001C 设备树 `msm8916-thwc-ufi001c`，并选择 UFI003 的基带、WCNSS 和 Wi-Fi NV 固件。
+- 现有设备恰好也是 `thwc,ufi001c` 设备树加 UFI003 固件包。这是选用候选配置的依据，不等同于新内核已适配验证。
+- 这是较新的 **ImmortalWrt 社区开发版候选方案**，不是 OpenWrt 官方稳定版，也不声称比所有其他分支更新。
+
+上游配置依据：[设备配置](https://github.com/lkiuyu/immortalwrt/blob/05d3cf2aff0bfc8ec0abdaf057215fc8504b378c/target/linux/msm89xx/image/msm8916.mk)、[内核配置](https://github.com/lkiuyu/immortalwrt/blob/05d3cf2aff0bfc8ec0abdaf057215fc8504b378c/target/linux/msm89xx/Makefile)。
+
+## 保留的功能
+
+- LuCI 管理界面、简体中文、防火墙、DHCP/DNS、SSH、IPv6。
+- 4G：ModemManager、QRTR、rmtfs、上游棒子初始化服务和 UFI003 基带固件。
+- Wi-Fi：wcn36xx 与相应固件。
+- USB RNDIS 网卡，适合在 Windows 上管理棒子。
+- 上游 `openstick-tweaks`、`gc`、`rootfs-resizer` 等硬件支持依赖。ADB 程序因上游依赖仍可能打包，但自定义默认设置关闭 ADB USB 端点。
+
+不主动选择 Docker、Alist、Passwall2、Samba、ZeroTier、DDNS-Go、网页终端等附加应用。保留 OpenWrt/ImmortalWrt 的基础包与设备默认依赖，并非删除一切非 LuCI 包。
+
+修改仅包含：选择板型与软件包、默认主机名和中文界面、关闭 ADB 端点、移除上游硬编码 DNS 列表。无线固件仍包含硬件必需的二进制文件，“干净”不代表完全没有闭源固件。
+
+## 上传与运行
+
+1. 在 GitHub 新建一个仓库。按你的账户条件确认 Actions 可用；私有仓库的运行和存储受账户额度影响。
+2. 将这个目录的**内容**放到仓库根目录，包括隐藏目录 `.github`。不要把外层 `ufi-build` 目录整体嵌套进去。可以使用 GitHub Desktop 或 git 保证隐藏目录也上传。
+3. 确认仓库里存在 `.github/workflows/build.yml`，以及 `config.seed`、`feeds.conf`、`source.json`、`scripts/`、`files/`。
+4. 打开仓库的 **Actions → Build UFI clean firmware → Run workflow**。
+5. 等待运行结束，在该次运行页面下载 `ufi003-clean-运行编号`。如果失败，下载 `ufi003-build-logs-运行编号` 诊断。
+
+工作流只允许手动触发；不会自动发布 Release，也不会连接或刷写你的棒子。无须填写棒子密码、SSH 密钥或 GitHub PAT。构建只使用公开源码与 GitHub 提供的只读令牌。
+
+首次全量编译可能需要数小时，具体时间取决于 Runner 和下载速度。本工作流设定 350 分钟超时；不保证在该时间内完成。产物和日志保留 14 天，请及时下载。
+
+## 下载后有什么
+
+- `firmware/`：该目标生成的 `*ufi003*boot.img`、`*ufi003*system.img` 及清单等。
+- `packages/`：这次编译产生的匹配软件包（若生成）。
+- `source.json`、`feeds.conf`、`feed-commits.txt`：固定与实际源码版本。
+- `expanded.config`、`diffconfig`：完整配置和最小配置。
+- `SHA256SUMS`：下载后用于核对文件完整性。
+
+成功编译仅代表构建通过，仍需检查分区、启动格式和硬件工作状态。**本工作流不会生成或宣称支持 LuCI sysupgrade 包。** 上游的 `system.img` 使用 Android sparse 格式，不能直接当作原始 ext4 镜像用 `dd` 写入。
+
+当前设备 boot 分区是 `mmcblk0p12`（64 MiB），rootfs 是 `mmcblk0p14`（约 3.33 GiB），本配置的初始 ext4 镜像大小为 512 MiB。上游 `rootfs-resizer` 会在首次启动尝试扩容并重启；该行为尚未在这块板上验证。不要为了套用其他型号教程而重写 GPT 或 bootloader。
+
+## 首次启动与配置
+
+构建文件没有写入个人密码、SIM 信息或现有配置。预期沿用上游 LAN 地址 `192.168.1.1`，主机名 `UFI-Clean`；实际以启动结果为准。首次通过 USB 管理，设置管理员密码，再配置 Wi-Fi 密码和运营商 APN。Wi-Fi 驱动被编入，不代表热点会默认开启。
+
+硬编码公共 DNS 已去除，正常使用 DHCP/运营商提供的 DNS。不要把不匹配的其他目标软件源或滚动更新的内核模块强行装入此固件；保留本次构建的软件包。
+
+## 更新源码
+
+当前所有源码和 feeds 固定到完整提交，避免每次运行默默换版本。若想跟进新版本，更新 `source.json` 和 `feeds.conf` 中的提交后重新编译、核对。
+
+设备源码最后更新时间与各 feed 不同，仍可能出现构建接口不兼容。工作流会先运行 `make defconfig`，检查关键包是否被保留，失败就停止；这不能替代真正的全量编译。仓库默认分支有变化时，不应仅因名称相同就认定还兼容这块板。
+
+## 本地备份
+
+设备备份放在构建目录之外的 `ufi-backup` 目录，不在这个可上传工程中。备份包含配置和设备专属基带/NV 数据，请仅本地保存。不要把整个父目录上传到 GitHub。
+
+目前完成的是在线关键分区备份，不是完整离线 eMMC 镜像；它不包含完整 rootfs，且运行中的 modem NV 可能变化。真正刷机前还应安排离线全盘备份和恢复路径验证。

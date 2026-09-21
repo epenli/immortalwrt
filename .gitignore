@@ -1,0 +1,11 @@
+openwrt/
+artifacts/
+logs/
+*.bin
+*.img
+*.tar.gz
+*.zip
+*backup*/
+*.key
+*.pem
+__pycache__/

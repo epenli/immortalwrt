@@ -1,0 +1,8 @@
+{
+  "repository": "https://github.com/lkiuyu/immortalwrt.git",
+  "commit": "05d3cf2aff0bfc8ec0abdaf057215fc8504b378c",
+  "checked_on": "2026-09-21",
+  "profile": "openstick-ufi003",
+  "device_tree": "msm8916-thwc-ufi001c",
+  "status": "Community snapshot candidate; build and boot not yet verified"
+}
