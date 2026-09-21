@@ -102,6 +102,7 @@ jobs:
           make download -j8 V=s 2>&1 | tee "$GITHUB_WORKSPACE/logs/download.log"
 
       - name: Compile firmware
+        id: compile
         run: |
           cd "$BUILD_DIR"
           make -j"$(nproc)" 2>&1 | tee "$GITHUB_WORKSPACE/logs/build.log" || {
@@ -113,12 +114,23 @@ jobs:
         run: |
           cd "$BUILD_DIR"
           python3 - <<'PY'
-          import pathlib, shutil, os, struct
+          import pathlib, shutil, os, struct, gzip
           target = pathlib.Path('bin/targets/msm89xx/msm8916')
-          boot = list(target.glob('*ufi003*boot.img'))
-          rootfs = list(target.glob('*ufi003*system.img'))
+          print('Generated target files:', sorted(p.name for p in target.iterdir()), flush=True)
+          out = pathlib.Path(os.environ['GITHUB_WORKSPACE']) / 'artifacts'
+          firmware = out / 'firmware'
+          shutil.copytree(target, firmware, dirs_exist_ok=True)
+          # ext4 images use TARGET_IMAGES_GZIP=y by default upstream.
+          for compressed in firmware.glob('*-openstick-ufi003-ext4-*.img.gz'):
+              raw = compressed.with_suffix('')
+              if raw.exists():
+                  raise SystemExit(f'Ambiguous compressed and raw image: {raw.name}')
+              with gzip.open(compressed, 'rb') as src, raw.open('wb') as dst:
+                  shutil.copyfileobj(src, dst)
+          boot = list(firmware.glob('*-openstick-ufi003-ext4-boot.img'))
+          rootfs = list(firmware.glob('*-openstick-ufi003-ext4-system.img'))
           if len(boot) != 1 or len(rootfs) != 1:
-              raise SystemExit('Expected exactly one UFI003 boot.img and system.img')
+              raise SystemExit(f'Expected exactly one UFI003 ext4 image pair; boot={boot}, system={rootfs}')
           if boot[0].stat().st_size > 64 * 1024 * 1024:
               raise SystemExit('boot.img exceeds the observed 64 MiB boot partition')
           with boot[0].open('rb') as f:
@@ -131,8 +143,6 @@ jobs:
               raise SystemExit('Expected an Android sparse system.img')
           if block_size * blocks > 3487727 * 1024:
               raise SystemExit('Expanded system.img exceeds the observed rootfs partition')
-          out = pathlib.Path(os.environ['GITHUB_WORKSPACE']) / 'artifacts'
-          shutil.copytree(target, out / 'firmware', dirs_exist_ok=True)
           # Preserve matching package versions; avoid mixing with a moving snapshot feed.
           if pathlib.Path('bin/packages').is_dir():
               shutil.copytree('bin/packages', out / 'packages', dirs_exist_ok=True)
@@ -148,6 +158,18 @@ jobs:
           path: artifacts/
           retention-days: 14
           if-no-files-found: error
+          compression-level: 1
+
+      - name: Preserve unvalidated outputs if collection fails
+        if: failure() && steps.compile.outcome == 'success'
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: ufi003-unvalidated-${{ github.run_number }}
+          path: |
+            /mnt/ufi-openwrt/bin/targets/msm89xx/msm8916/
+            artifacts/
+          retention-days: 14
+          if-no-files-found: warn
           compression-level: 1
 
       - name: Upload build logs even after failure
