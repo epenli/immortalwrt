@@ -1,8 +1,8 @@
 # UF1003 MB V02 精简固件云编译
 
-这是 GitHub Actions 构建工程。基础版第 7 次构建已在 UF1003 MB V02 实机启动：Linux 6.18.35、APK、USB RNDIS、LuCI、Wi-Fi 和根分区扩容正常。蜂窝模块已识别，但 SIM/移动数据尚未验证。本次新增 PassWall，需重新完成构建和实机测试。
+这是 GitHub Actions 构建工程。基础版第 7 次构建已在 UF1003 MB V02 实机启动：Linux 6.18.35、APK、USB RNDIS、LuCI、Wi-Fi 和根分区扩容正常。蜂窝模块已识别，但 SIM/移动数据尚未验证。本次新增 PassWall 和 UF1003 专用 ext4 sysupgrade 适配，需重新完成构建及升级实测。
 
-后续升级请阅读 [UPDATE.md](UPDATE.md)。本目标使用 Fastboot 分别刷 boot/rootfs，不提供 LuCI sysupgrade 镜像。
+后续升级请阅读 [UPDATE.md](UPDATE.md)。首次安装带升级适配的版本仍使用 Fastboot；之后可使用本工程专用的 ext4 sysupgrade 包。升级写入与重启恢复尚未实机验证。
 
 ## 源码与板型
 
@@ -26,7 +26,7 @@
 
 不主动选择 Docker、Alist、Passwall2、Samba、ZeroTier、DDNS-Go、网页终端等附加应用。保留 OpenWrt/ImmortalWrt 的基础包与设备默认依赖，并非删除一切非 LuCI 包。
 
-自定义内容包括板型与软件包、默认主机名和中文界面、关闭 ADB 端点、移除上游硬编码 DNS，以及注释官方未发布的 msm89xx/openstick/video 软件源。无线固件仍包含硬件必需的二进制文件，“干净”不代表完全没有闭源固件。
+自定义内容包括板型与软件包、默认地址 192.168.31.1、主机名和中文界面、关闭 ADB 端点、移除上游硬编码 DNS，以及注释官方未发布的 msm89xx/openstick/video 软件源。无线固件仍包含硬件必需的二进制文件，“干净”不代表完全没有闭源固件。
 
 ## 上传与运行
 
@@ -42,19 +42,19 @@
 
 ## 下载后有什么
 
-- `firmware/`：该目标生成的 `*ufi003*boot.img`、`*ufi003*system.img` 及清单等。
+- `firmware/`：该目标生成的 `*ufi003*boot.img`、`*ufi003*system.img` 、专用 `*-ext4-sysupgrade.bin` 及清单等。
 - `packages/`：这次编译产生的匹配软件包（若生成）。
 - `source.json`、`feeds.conf`、`feed-commits.txt`：固定与实际源码版本。
 - `expanded.config`、`diffconfig`：完整配置和最小配置。
 - `SHA256SUMS`：下载后用于核对文件完整性。
 
-成功编译仅代表构建通过，仍需检查分区、启动格式和硬件工作状态。**本工作流不会生成或宣称支持 LuCI sysupgrade 包。** 上游的 `system.img` 使用 Android sparse 格式，不能直接当作原始 ext4 镜像用 `dd` 写入。
+成功编译仅代表构建通过，仍需检查分区、启动格式和硬件工作状态。专用 sysupgrade 包包含 boot 和压缩原始 ext4，带校验与 fwtool 元数据；仅用于已安装本工程升级脚本且分区完全匹配的 UF1003。 上游的 `system.img` 使用 Android sparse 格式，不能直接当作原始 ext4 镜像用 `dd` 写入。
 
-当前设备 boot 分区是 `mmcblk0p12`（64 MiB），rootfs 是 `mmcblk0p14`（约 3.33 GiB），本配置的初始 ext4 镜像大小为 512 MiB。上游 `rootfs-resizer` 会在首次启动尝试扩容并重启；该行为尚未在这块板上验证。不要为了套用其他型号教程而重写 GPT 或 bootloader。
+当前设备 boot 分区是 `mmcblk0p12`（64 MiB），rootfs 是 `mmcblk0p14`（约 3.33 GiB），本配置的初始 ext4 镜像大小为 512 MiB。上游 `rootfs-resizer` 会在首次启动尝试扩容并重启；基础版第 7 次构建已验证扩容启动。不要为了套用其他型号教程而重写 GPT 或 bootloader。
 
 ## 首次启动与配置
 
-构建文件没有写入个人密码、SIM 信息或现有配置。预期沿用上游 LAN 地址 `192.168.1.1`，主机名 `UFI-Clean`；实际以启动结果为准。首次通过 USB 管理，设置管理员密码，再配置 Wi-Fi 密码和运营商 APN。Wi-Fi 驱动被编入，不代表热点会默认开启。
+构建文件没有写入个人密码、SIM 信息或现有配置。默认 LAN 地址 `192.168.31.1`，主机名 `UFI-Clean`；实际以启动结果为准。首次通过 USB 管理，设置管理员密码，再配置 Wi-Fi 密码和运营商 APN。Wi-Fi 驱动被编入，不代表热点会默认开启。
 
 硬编码公共 DNS 已去除，正常使用 DHCP/运营商提供的 DNS。不要把不匹配的其他目标软件源或滚动更新的内核模块强行装入此固件；保留本次构建的软件包。
 
@@ -69,3 +69,9 @@
 设备备份放在构建目录之外的 `ufi-backup` 目录，不在这个可上传工程中。备份包含配置和设备专属基带/NV 数据，请仅本地保存。不要把整个父目录上传到 GitHub。
 
 本机已保存旧系统 p1-p13、磁盘头尾、eMMC boot 区，以及完整 p14 在线镜像和校验清单。在线备份不能当作离线一致性快照。每次刷写前仍须备份当前配置；备份和个人信息不上传此仓库。
+
+## 构建缓存
+
+Actions 缓存 dl 下载目录与 ccache 编译对象（ccache 上限 3 GiB）。第一次建立缓存，后续构建优先恢复；源码包仍由构建系统校验散列，ccache 按编译器内容和编译输入判断是否可复用。缓存不包含设备备份、个人配置或密码。
+
+编译失败时也尽可能保留已有编译缓存，统计写入日志的 ccache.log。缓存被回收或源码/编译器改变时会重新构建；工具链、链接和打包仍可能运行，不能承诺第二次不用 make 或固定缩短多少时间。没有缓存整个 build_dir/staging_dir，以免把旧内核模块或过期配置带入新镜像。
