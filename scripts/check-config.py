@@ -6,7 +6,8 @@ import sys
 root = pathlib.Path(__file__).resolve().parents[1]
 actual = pathlib.Path(sys.argv[1]).read_text().splitlines()
 enabled = set(actual)
-required = [s for s in (root / 'config.seed').read_text().splitlines() if s.endswith('=y')]
+required = [s for s in (root / 'config.seed').read_text().splitlines()
+            if s.startswith('CONFIG_') and '=' in s]
 missing = [s for s in required if s not in enabled]
 forbidden = ['dockerd', 'luci-app-alist', 'luci-app-passwall2', 'samba4-server',
              'zerotier', 'luci-app-ddns-go', 'ttyd']
