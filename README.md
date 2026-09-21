@@ -1,6 +1,8 @@
 # UF1003 MB V02 精简固件云编译
 
-这是可放入 GitHub 仓库的构建文件，**不是已经编译完成的固件**。截至 2026-09-21，已核对设备信息和上游配置，尚未在 GitHub 实际编译，也未进行刷机、启动或联网验证。
+这是 GitHub Actions 构建工程。基础版第 7 次构建已在 UF1003 MB V02 实机启动：Linux 6.18.35、APK、USB RNDIS、LuCI、Wi-Fi 和根分区扩容正常。蜂窝模块已识别，但 SIM/移动数据尚未验证。本次新增 PassWall，需重新完成构建和实机测试。
+
+后续升级请阅读 [UPDATE.md](UPDATE.md)。本目标使用 Fastboot 分别刷 boot/rootfs，不提供 LuCI sysupgrade 镜像。
 
 ## 源码与板型
 
@@ -19,11 +21,12 @@
 - 4G：ModemManager、QRTR、rmtfs、上游棒子初始化服务和 UFI003 基带固件。
 - Wi-Fi：wcn36xx 与相应固件。
 - USB RNDIS 网卡，适合在 Windows 上管理棒子。
+- PassWall（非 PassWall2）及中文界面，包含 Xray 和 sing-box 客户端引擎与所需内核模块；不预设订阅或节点，不默认启用代理。
 - 上游 `openstick-tweaks`、`gc`、`rootfs-resizer` 等硬件支持依赖。ADB 程序因上游依赖仍可能打包，但自定义默认设置关闭 ADB USB 端点。
 
 不主动选择 Docker、Alist、Passwall2、Samba、ZeroTier、DDNS-Go、网页终端等附加应用。保留 OpenWrt/ImmortalWrt 的基础包与设备默认依赖，并非删除一切非 LuCI 包。
 
-修改仅包含：选择板型与软件包、默认主机名和中文界面、关闭 ADB 端点、移除上游硬编码 DNS 列表。无线固件仍包含硬件必需的二进制文件，“干净”不代表完全没有闭源固件。
+自定义内容包括板型与软件包、默认主机名和中文界面、关闭 ADB 端点、移除上游硬编码 DNS，以及注释官方未发布的 msm89xx/openstick/video 软件源。无线固件仍包含硬件必需的二进制文件，“干净”不代表完全没有闭源固件。
 
 ## 上传与运行
 
@@ -65,4 +68,4 @@
 
 设备备份放在构建目录之外的 `ufi-backup` 目录，不在这个可上传工程中。备份包含配置和设备专属基带/NV 数据，请仅本地保存。不要把整个父目录上传到 GitHub。
 
-目前完成的是在线关键分区备份，不是完整离线 eMMC 镜像；它不包含完整 rootfs，且运行中的 modem NV 可能变化。真正刷机前还应安排离线全盘备份和恢复路径验证。
+本机已保存旧系统 p1-p13、磁盘头尾、eMMC boot 区，以及完整 p14 在线镜像和校验清单。在线备份不能当作离线一致性快照。每次刷写前仍须备份当前配置；备份和个人信息不上传此仓库。

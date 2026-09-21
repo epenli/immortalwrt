@@ -4,5 +4,5 @@
   "checked_on": "2026-09-21",
   "profile": "openstick-ufi003",
   "device_tree": "msm8916-thwc-ufi001c",
-  "status": "Community snapshot candidate; build and boot not yet verified"
+  "status": "Base recipe build 7 boot-tested on UF1003 MB V02; PassWall addition pending build and device validation"
 }
