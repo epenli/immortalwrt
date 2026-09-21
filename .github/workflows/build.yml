@@ -72,7 +72,7 @@ jobs:
       - name: Download sources
         run: |
           cd "$BUILD_DIR"
-          make download -j8 2>&1 | tee "$GITHUB_WORKSPACE/logs/download.log"
+          make download -j8 V=s 2>&1 | tee "$GITHUB_WORKSPACE/logs/download.log"
 
       - name: Compile firmware
         run: |
