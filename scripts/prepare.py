@@ -53,6 +53,18 @@ if text.count(needle) != 1:
     raise SystemExit('Unexpected LuCI flash view; review timeout adaptation')
 flash.write_text(text.replace(needle,
     "L.env.rpctimeout = Math.max(L.env.rpctimeout || 20, 180);\n\n" + needle))
+# Backport only the verified Xray version/hash; keep the pinned feed xray_recipe.
+xray = source / 'feeds/packages/net/xray-core/Makefile'
+xray_recipe = xray.read_text()
+for old, new in (
+    ('PKG_VERSION:=26.3.27', 'PKG_VERSION:=26.9.9'),
+    ('PKG_HASH:=992a4997e6bb846d11469435d687f99ef812fcde1e0a009bb8e95189ea20331d',
+     'PKG_HASH:=efb871a981690688191433a76beef7afdab6750d53cc1775cf8e9e995730ef22'),
+):
+    if xray_recipe.count(old) != 1:
+        raise SystemExit('Pinned Xray xray_recipe changed; review the backport')
+    xray_recipe = xray_recipe.replace(old, new)
+xray.write_text(xray_recipe)
 shutil.copyfile(recipe / 'config.seed', source / '.config')
 shutil.copytree(recipe / 'files', source / 'files', dirs_exist_ok=True)
 (source / 'files/etc/uci-defaults/zz-ufi-local').chmod(0o755)
