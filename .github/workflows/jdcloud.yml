@@ -96,7 +96,7 @@ jobs:
     - name: Check firmware programs under ARM64 emulation
       run: |
         sudo apt-get install -y --no-install-recommends squashfs-tools qemu-user
-        python3 jdcloud/check-programs.py artifacts runtime-check
+        python3 jdcloud/check-programs.py artifacts runtime-check --geodata
     - name: Upload firmware and reproducibility metadata
       if: success()
       uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
@@ -147,3 +147,6 @@ jobs:
         if-no-files-found: warn
 'on':
   workflow_dispatch: null
+  push:
+    branches: [main]
+    paths: ['jdcloud/**', '.github/workflows/jdcloud.yml']

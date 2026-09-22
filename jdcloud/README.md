@@ -20,3 +20,5 @@
 刷机前必须备份配置、核对分区和镜像兼容性，并用当前系统的 sysupgrade -T 检查。
 不能把 UFI003 固件用于本设备，也不能用 initramfs 镜像代替日常 sysupgrade 镜像。
 跨版本迁移配置应另行检查，避免直接覆盖新版所有系统文件。
+
+完整分流依赖：内置 geoview、v2ray-geoip 和 v2ray-geosite。成品检查会在 ARM64 模拟环境实际运行 geoview，将 GeoIP cn 和 GeoSite disney 转换为 SRS，缺失或转换失败则不发布。节点密码等私人配置不写入公开固件。

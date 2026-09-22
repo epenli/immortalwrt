@@ -100,7 +100,7 @@ def collect(build):
         raise SystemExit('Missing device package manifest')
     packages = {line.split()[0] for line in manifests[0].read_text().splitlines() if line.strip()}
     required = {'luci-app-passwall', 'luci-i18n-passwall-zh-cn', 'xray-core', 'sing-box',
-                'hysteria', 'kmod-fs-f2fs', 'mkf2fs', 'f2fsck', 'block-mount',
+                'hysteria', 'geoview', 'v2ray-geoip', 'v2ray-geosite', 'kmod-fs-f2fs', 'mkf2fs', 'f2fsck', 'block-mount',
                 'libatomic1', 'kmod-tun', 'kmod-inet-diag', 'kmod-netlink-diag',
                 'kmod-nft-socket', 'kmod-nft-tproxy', 'ipq-wifi-jdcloud_re-ss-01'}
     if required - packages:
