@@ -14,6 +14,9 @@ if uci -q get gc.config >/dev/null; then
 fi
 uci commit system
 uci commit luci
+# Fresh installations use the PassWall DNS engine verified on the router.
+uci set passwall.@global[0].dns_mode='sing-box'
+uci commit passwall
 fi
 # These community feeds are not published on the official snapshot server.
 # Matching hardware/kernel packages remain in this build's downloadable artifact.
