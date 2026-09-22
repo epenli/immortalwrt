@@ -126,7 +126,9 @@ jobs:
           make download -j8 V=s 2>&1 | tee "$GITHUB_WORKSPACE/logs/download.log"
 
       - name: Test upgrade safeguards using disposable files
-        run: python3 scripts/test-upgrade.py
+        run: |
+          python3 scripts/test-upgrade.py
+          python3 scripts/test-ext4-padding.py
 
       - name: Compile firmware
         id: compile
@@ -175,13 +177,7 @@ jobs:
               shutil.copytree('bin/packages', out / 'packages', dirs_exist_ok=True)
           PY
           firmware="$GITHUB_WORKSPACE/artifacts/firmware"
-          simg2img "$firmware"/*-openstick-ufi003-ext4-system.img "$BUILD_DIR/ufi-root.raw"
-          python3 "$GITHUB_WORKSPACE/scripts/pack-upgrade.py" \
-            --boot "$firmware"/*-openstick-ufi003-ext4-boot.img \
-            --root "$BUILD_DIR/ufi-root.raw" \
-            --output "$firmware/immortalwrt-openstick-ufi003-ext4-sysupgrade.bin" \
-            --fwtool "$BUILD_DIR/staging_dir/host/bin/fwtool"
-          rm "$BUILD_DIR/ufi-root.raw"
+          python3 "$GITHUB_WORKSPACE/scripts/finalize-images.py" "$firmware" "$BUILD_DIR/staging_dir/host/bin/fwtool"
           cd "$GITHUB_WORKSPACE/artifacts"
           find . -type f ! -name SHA256SUMS -print0 | sort -z | xargs -0 sha256sum > SHA256SUMS
 

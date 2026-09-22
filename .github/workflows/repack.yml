@@ -1,0 +1,86 @@
+name: Validate and repack build 9
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  repack:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+
+      - name: Install image tools and build pinned fwtool
+        run: |
+          mkdir -p logs
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends build-essential cmake git e2fsprogs android-sdk-libsparse-utils bsdextrautils
+          git init fwtool-src
+          git -C fwtool-src remote add origin https://git.openwrt.org/project/fwtool.git
+          git -C fwtool-src fetch --depth 1 origin 04cd252e4e9394ffacd51f56f1f124abc534f715
+          git -C fwtool-src checkout --detach FETCH_HEAD
+          test "$(git -C fwtool-src rev-parse HEAD)" = 04cd252e4e9394ffacd51f56f1f124abc534f715
+          cmake -S fwtool-src -B fwtool-build
+          cmake --build fwtool-build
+
+      - name: Test bounded ext4 repair
+        run: python3 scripts/test-ext4-padding.py 2>&1 | tee logs/ext4-tests.log
+
+      - name: Download preserved images from build 9
+        uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7
+        with:
+          artifact-ids: '10670235788'
+          run-id: '35658036739'
+          github-token: ${{ github.token }}
+          path: recovered
+          merge-multiple: true
+
+      - name: Locate artifacts and retain original build provenance
+        run: |
+          python3 - <<'PY'
+          import json, pathlib, shutil
+          from urllib.request import urlopen
+          run = json.load(urlopen('https://api.github.com/repos/epenli/ufi-clean-build/actions/runs/35658036739'))
+          assert run['head_sha'] == 'dc78d6bbbc3949d9ea572fd963644fd44a0a6d50'
+          matches = list(pathlib.Path('recovered').rglob('expanded.config'))
+          assert len(matches) == 1, matches
+          source = matches[0].parent
+          assert (source / 'firmware').is_dir()
+          shutil.copytree(source, 'artifacts')
+          pathlib.Path('artifacts/repack-provenance.json').write_text(json.dumps({
+              'source_run': 35658036739, 'source_artifact': 10670235788,
+              'source_commit': run['head_sha'],
+              'operation': 'Offline bounded inode bitmap padding normalization; no firmware recompilation',
+          }, indent=2) + '\n')
+          PY
+
+      - name: Normalize and validate both image formats
+        run: |
+          python3 scripts/finalize-images.py artifacts/firmware "$GITHUB_WORKSPACE/fwtool-build/fwtool" 2>&1 | tee logs/repack.log
+          cd artifacts
+          find . -type f ! -name SHA256SUMS -print0 | sort -z | xargs -0 sha256sum > SHA256SUMS
+          sha256sum --check SHA256SUMS > "$GITHUB_WORKSPACE/logs/checksums.log"
+
+      - name: Upload checked images and matching packages
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: ufi003-clean-9-repacked-${{ github.run_number }}
+          path: artifacts/
+          retention-days: 14
+          compression-level: 1
+          if-no-files-found: error
+
+      - name: Upload diagnostic logs
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: ufi003-repack-logs-${{ github.run_number }}
+          path: logs/
+          retention-days: 14
