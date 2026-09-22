@@ -2,6 +2,9 @@ name: Build UFI clean firmware
 
 on:
   workflow_dispatch:
+  push:
+    branches: [main]
+    paths: [config.seed, scripts/**, files/**, source.json, feeds.conf, .github/workflows/build.yml]
 
 permissions:
   contents: read
@@ -180,6 +183,11 @@ jobs:
           python3 "$GITHUB_WORKSPACE/scripts/finalize-images.py" "$firmware" "$BUILD_DIR/staging_dir/host/bin/fwtool"
           cd "$GITHUB_WORKSPACE/artifacts"
           find . -type f ! -name SHA256SUMS -print0 | sort -z | xargs -0 sha256sum > SHA256SUMS
+
+      - name: Validate PassWall programs and Geo data from ext4 image
+        run: |
+          sudo apt-get install -y --no-install-recommends qemu-user
+          python3 scripts/check-programs.py artifacts runtime-check
 
       - name: Upload firmware and reproducibility metadata
         if: success()
