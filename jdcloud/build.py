@@ -20,12 +20,29 @@ def prepare(build):
     source = (build / 'target/linux/qualcommax/image/ipq60xx.mk').read_text()
     if f'define Device/{PROFILE}' not in source:
         raise SystemExit('Pinned source does not support this device')
+    # Backport only the verified Xray version/hash; keep the pinned feed recipe.
+    xray = build / 'feeds/packages/net/xray-core/Makefile'
+    recipe = xray.read_text()
+    for old, new in (
+        ('PKG_VERSION:=26.3.27', 'PKG_VERSION:=26.9.9'),
+        ('PKG_HASH:=992a4997e6bb846d11469435d687f99ef812fcde1e0a009bb8e95189ea20331d',
+         'PKG_HASH:=efb871a981690688191433a76beef7afdab6750d53cc1775cf8e9e995730ef22'),
+    ):
+        if recipe.count(old) != 1:
+            raise SystemExit('Pinned Xray recipe changed; review the backport')
+        recipe = recipe.replace(old, new)
+    xray.write_text(recipe)
     shutil.copyfile(RECIPE / 'config.seed', build / '.config')
     defaults = build / 'files/etc/uci-defaults/99-jdcloud-clean'
     defaults.parent.mkdir(parents=True, exist_ok=True)
     defaults.write_text("""#!/bin/sh
 uci set luci.main.lang='zh_cn'
 uci commit luci
+# Use the DNS engine verified on this device; do not overwrite restored settings.
+if [ "$(uci -q get passwall.@global[0].enabled)" != '1' ]; then
+    uci set passwall.@global[0].dns_mode='sing-box'
+    uci commit passwall
+fi
 # Apply the management address only to a fresh configuration.
 if [ "$(uci -q get network.lan.ipaddr)" = '192.168.1.1' ]; then
     uci set network.lan.ipaddr='192.168.10.251'
@@ -83,10 +100,16 @@ def collect(build):
         raise SystemExit('Missing device package manifest')
     packages = {line.split()[0] for line in manifests[0].read_text().splitlines() if line.strip()}
     required = {'luci-app-passwall', 'luci-i18n-passwall-zh-cn', 'xray-core', 'sing-box',
+                'hysteria', 'kmod-fs-f2fs', 'mkf2fs', 'f2fsck', 'block-mount',
                 'libatomic1', 'kmod-tun', 'kmod-inet-diag', 'kmod-netlink-diag',
                 'kmod-nft-socket', 'kmod-nft-tproxy', 'ipq-wifi-jdcloud_re-ss-01'}
     if required - packages:
         raise SystemExit(f'Missing installed packages: {required - packages}')
+    versions = dict(line.split()[:2] for line in manifests[0].read_text().splitlines() if line.strip())
+    if not versions['hysteria'].startswith('2.'):
+        raise SystemExit('Expected Hysteria 2')
+    if not versions['xray-core'].startswith('26.9.9-'):
+        raise SystemExit('Xray must match the tested PassWall-compatible version')
     shutil.copytree(target, out / 'firmware', dirs_exist_ok=True)
     shutil.copytree(build / 'bin/packages', out / 'packages', dirs_exist_ok=True)
     shutil.copyfile(RECIPE / 'README.md', out / 'README.md')
