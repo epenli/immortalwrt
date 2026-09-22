@@ -45,14 +45,18 @@ def normalize(path):
         bpg = struct.unpack_from('<I', sb, 32)[0]
         ipg = struct.unpack_from('<I', sb, 40)[0]
         incompat, ro_compat = struct.unpack_from('<II', sb, 96)
-        if block_size != 4096 or incompat & (0x80 | 0x10) or ro_compat & (0x10 | 0x400):
+        if block_size != 4096 or incompat & (0x80 | 0x10) or ro_compat & 0x400:
             raise ValueError('Unexpected ext4 layout/checksums; review before repair')
         if not bpg or not ipg or ipg % 8 or ipg >= block_size * 8:
             raise ValueError('Unexpected bitmap geometry')
         groups = (blocks - first + bpg - 1) // bpg
         padding = []
+        descriptor_checksums = []
         for group in range(groups):
-            f.seek((first + 1) * block_size + group * 32 + 4)
+            descriptor = (first + 1) * block_size + group * 32
+            if ro_compat & 0x10:
+                descriptor_checksums.append((descriptor + 30, descriptor + 32))
+            f.seek(descriptor + 4)
             bitmap = struct.unpack('<I', f.read(4))[0] * block_size
             if not 0 < bitmap < path.stat().st_size - block_size:
                 raise ValueError('Bitmap lies outside image')
@@ -79,7 +83,7 @@ def normalize(path):
                         if a == b:
                             continue
                         pos = offset + i
-                        if not (any(start <= pos < end for start, end in sb_fields) or
+                        if not (any(start <= pos < end for start, end in sb_fields + descriptor_checksums) or
                                 (b == 255 and any(start <= pos < end for start, end in padding))):
                             raise ValueError(f'Repair changed non-padding data at byte {pos}')
                         changed += 1
@@ -88,4 +92,4 @@ def normalize(path):
                 raise ValueError('Repair changed image length')
         candidate.replace(path)
     return {'repaired': True, 'changed_bytes': changed, 'changed_blocks': changed_blocks,
-            'permitted_changes': 'inode bitmap padding and fsck superblock bookkeeping only'}
+            'permitted_changes': 'inode bitmap padding, descriptor checksums and fsck superblock bookkeeping only'}

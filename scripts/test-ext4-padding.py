@@ -14,7 +14,7 @@ with tempfile.TemporaryDirectory() as tmp:
     with root.open('wb') as f:
         f.truncate(64 * 1024 * 1024)
     subprocess.run(['mke2fs', '-q', '-F', '-t', 'ext4', '-b', '4096',
-                    '-O', '^metadata_csum,^64bit,^uninit_bg', str(root)], check=True)
+                    '-O', '^metadata_csum,^64bit,uninit_bg', str(root)], check=True)
     assert not padding.normalize(root)['repaired']
     with root.open('r+b') as f:
         f.seek(1024 + 40)
