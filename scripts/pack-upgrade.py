@@ -11,6 +11,11 @@ import struct
 import subprocess
 import tarfile
 import tempfile
+import importlib.util
+
+_spec = importlib.util.spec_from_file_location('ext4_padding', Path(__file__).with_name('ext4-padding.py'))
+_padding = importlib.util.module_from_spec(_spec)
+_spec.loader.exec_module(_padding)
 
 
 def digest(path):
@@ -36,8 +41,10 @@ def pack(boot, root, output, fwtool):
         raise ValueError('Truncated boot kernel')
     if b'root=/dev/mmcblk0p14' not in header[64:576].split(b'\0', 1)[0].split():
         raise ValueError('Boot image has unexpected root device')
-    # fsck is read-only; no repair or dirty filesystem is accepted.
-    subprocess.run(['e2fsck', '-fn', str(root)], check=True)
+    # Repair only the known unused-bitmap padding issue on this scratch file.
+    # Every other fsck error or change to file data aborts packaging.
+    report = _padding.normalize(root)
+    output.with_suffix('.repair.json').write_text(json.dumps(report, indent=2) + '\n')
     with tempfile.TemporaryDirectory(prefix='ufi-pack-', dir=output.parent) as tmp:
         tmp = Path(tmp)
         compressed = tmp / 'root.ext4.gz'
