@@ -3,9 +3,12 @@
 import pathlib
 import shutil
 import sys
+import subprocess
+from ufi_features import install as install_ufi_features
 
 recipe = pathlib.Path(__file__).resolve().parents[1]
 source = pathlib.Path(sys.argv[1]).resolve()
+subprocess.run([sys.executable, str(recipe / 'scripts/test-ufi-features.py')], check=True)
 # These four feed hashes describe a different archive packing result. The pinned
 # build system checked out the exact commits below and reported these SHA-256s.
 # Keep fixed commits and strict hash verification; never use MIRROR_HASH=skip.
@@ -68,4 +71,5 @@ xray.write_text(xray_recipe)
 shutil.copyfile(recipe / 'config.seed', source / '.config')
 shutil.copytree(recipe / 'files', source / 'files', dirs_exist_ok=True)
 (source / 'files/etc/uci-defaults/zz-ufi-local').chmod(0o755)
+install_ufi_features(source)
 print('Prepared UFI003 profile with UFI001C DTS; upstream hardware services retained.')

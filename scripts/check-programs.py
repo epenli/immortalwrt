@@ -7,6 +7,7 @@ import shutil
 import subprocess
 import sys
 import tarfile
+from ufi_features import REQUIRED_PACKAGES, TRIGGERS
 
 output, work = (Path(p).resolve() for p in sys.argv[1:])
 work.mkdir(parents=True, exist_ok=True)
@@ -17,6 +18,7 @@ required = {'luci-app-passwall', 'luci-i18n-passwall-zh-cn', 'hysteria', 'xray-c
             'sing-box', 'geoview', 'v2ray-geoip', 'v2ray-geosite', 'libatomic1',
             'kmod-tun', 'kmod-nft-socket', 'kmod-nft-tproxy', 'kmod-inet-diag', 'kmod-netlink-diag'}
 assert not required - versions.keys(), f'Missing packages: {required - versions.keys()}'
+assert not REQUIRED_PACKAGES - versions.keys(), 'Missing UFI LED kernel packages'
 assert versions['hysteria'].startswith('2.7.0-'), versions['hysteria']
 assert versions['xray-core'].startswith('26.9.9-'), versions['xray-core']
 images = list((output / 'firmware').glob('*ext4-sysupgrade.bin'))
@@ -29,8 +31,17 @@ with tarfile.open(images[0]) as archive:
         shutil.copyfileobj(src, dst)
 rootfs = work / 'rootfs'
 rootfs.mkdir()
-for directory in ['usr', 'lib']:
+for directory in ['usr', 'lib', 'etc', 'www']:
     subprocess.run(['debugfs', '-R', f'rdump /{directory} {rootfs}', str(raw)], check=True)
+for relative in ['usr/sbin/ufi-wifi-recovery', 'etc/init.d/ufi-wifi-recovery',
+                 'etc/uci-defaults/zz-ufi-wifi-recovery']:
+    path = rootfs / relative
+    assert path.is_file() and path.stat().st_mode & 0o111, f'Missing executable: {relative}'
+    subprocess.run(['sh', '-n', str(path)], check=True)
+for trigger in [*TRIGGERS, 'netdev']:
+    path = rootfs / f'www/luci-static/resources/view/system/led-trigger/{trigger}.js'
+    assert path.is_file() and path.stat().st_size > 0, f'Missing LED UI: {trigger}'
+assert list((rootfs / 'lib/modules').glob('*/ledtrig-netdev.ko*')), 'Missing netdev kernel module'
 def run(binary, *args):
     return subprocess.check_output(['qemu-aarch64', '-L', str(rootfs),
         str(rootfs / 'usr/bin' / binary), *args], text=True, stderr=subprocess.STDOUT, timeout=90)
@@ -53,6 +64,7 @@ config_path = work / 'dns-test.json'
 config_path.write_text(json.dumps(config))
 tested = run('xray', 'run', '-test', '-config', str(config_path))
 geo_checks = ''
+geo_checks += 'UFI recovery service, LED UI and netdev kernel module packaging passed.\n'
 if True:
     geo_checks += run('geoview', '-version')
     for kind, code in [('geoip', 'cn'), ('geosite', 'disney')]:
