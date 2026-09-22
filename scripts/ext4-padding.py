@@ -61,8 +61,8 @@ def normalize(path):
             if not 0 < bitmap < path.stat().st_size - block_size:
                 raise ValueError('Bitmap lies outside image')
             padding.append((bitmap + ipg // 8, bitmap + block_size))
-    # Standard fsck timestamps, mount count, state and superblock checksum only.
-    sb_fields = [(1024 + a, 1024 + b) for a, b in [(48, 54), (58, 60), (64, 68), (1020, 1024)]]
+    # Standard fsck timestamps, mount count, state, lifetime write counter and checksum.
+    sb_fields = [(1024 + a, 1024 + b) for a, b in [(48, 54), (58, 60), (64, 68), (376, 384), (1020, 1024)]]
     with tempfile.TemporaryDirectory(prefix='ext4-repair-', dir=path.parent) as tmp:
         candidate = Path(tmp) / 'root.ext4'
         shutil.copyfile(path, candidate)

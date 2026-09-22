@@ -12,7 +12,7 @@ spec.loader.exec_module(padding)
 with tempfile.TemporaryDirectory() as tmp:
     root = Path(tmp) / 'fixture.ext4'
     with root.open('wb') as f:
-        f.truncate(64 * 1024 * 1024)
+        f.truncate(512 * 1024 * 1024)
     subprocess.run(['mke2fs', '-q', '-F', '-t', 'ext4', '-b', '4096',
                     '-O', '^metadata_csum,^64bit,uninit_bg', str(root)], check=True)
     assert not padding.normalize(root)['repaired']
