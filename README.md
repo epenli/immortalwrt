@@ -81,3 +81,7 @@ Actions 缓存 dl 下载目录与 ccache 编译对象（ccache 上限 3 GiB）�
 下载 [成功的重打包任务](https://github.com/epenli/ufi-clean-build/actions/runs/35686880231) 中的 `ufi003-clean-9-repacked-3`。原第 9 次构建的红色状态不会改变；不要使用原 `ufi003-unvalidated-9`。
 
 重打包复用第 9 次已编译的内容，只补齐 inode 位图无效范围内的填充位，并逐字节验证其他区域完全不变。ext4 只读复检、Fastboot 稀疏镜像往返转换一致性和完整 SHA256SUMS 检查均通过。两种升级格式及匹配软件包保存在同一新产物中。
+
+## 完整 PassWall 构建
+
+内置 Hysteria 2.7.0、Xray 26.9.9、sing-box、geoview、GeoIP 和 GeoSite。新装默认 sing-box DNS，保留配置升级沿用原设置。UFI 使用 ext4 根文件系统，不套用京东云 F2FS overlay 初始化方案。云端从实际 ext4 升级镜像提取程序，检查包版本，并用 ARM64 QEMU 测试 HY2、Xray DNS 配置与 Geo 规则转换。测试成功才发布成品，不等于已完成实机刷写验证。
