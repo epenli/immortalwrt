@@ -22,6 +22,11 @@ jobs:
         path: preserved
     - name: Validate images and native Hysteria 2
       run: python3 jdcloud/finalize.py preserved validated
+    - name: Check programs extracted from the actual firmware
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y --no-install-recommends squashfs-tools qemu-user
+        python3 jdcloud/check-programs.py validated runtime-check
     - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
       with:
         name: jdcloud-re-ss-01-hy2-validated-${{ github.event.workflow_run.run_number }}
