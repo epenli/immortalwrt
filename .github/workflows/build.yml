@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
   push:
     branches: [main]
-    paths: [config.seed, scripts/**, files/**, source.json, feeds.conf, .github/workflows/build.yml]
+    paths: [build-support/**, config.seed, scripts/**, files/**, source.json, feeds.conf, .github/workflows/build.yml]
 
 permissions:
   contents: read
@@ -122,6 +122,22 @@ jobs:
             printf '%s %s\n' "$feed" "$(git -C "feeds/$feed" rev-parse HEAD)"
           done > "$GITHUB_WORKSPACE/artifacts/feed-commits.txt"
 
+      - name: Fingerprint compatible toolchain inputs
+        id: toolchain_key
+        run: python3 build-support/toolchain-cache.py "$BUILD_DIR" ufi
+
+      - name: Restore complete host tools and cross toolchain
+        id: toolchain_cache
+        continue-on-error: true
+        uses: actions/cache/restore@caa296126883cff596d87d8935842f9db880ef25
+        with:
+          path: |
+            /mnt/ufi-openwrt/build_dir/host
+            /mnt/ufi-openwrt/build_dir/toolchain-*
+            /mnt/ufi-openwrt/staging_dir/host
+            /mnt/ufi-openwrt/staging_dir/toolchain-*
+          key: ${{ steps.toolchain_key.outputs.key }}
+
       - name: Download sources
         id: download
         run: |
@@ -132,6 +148,24 @@ jobs:
         run: |
           python3 scripts/test-upgrade.py
           python3 scripts/test-ext4-padding.py
+
+      - name: Prepare or reuse host tools and cross toolchain
+        id: toolchain_build
+        run: |
+          cd "$BUILD_DIR"
+          make -j"$(nproc)" tools/compile toolchain/compile 2>&1 | tee "$GITHUB_WORKSPACE/logs/toolchain.log"
+
+      - name: Save complete host tools and cross toolchain
+        if: steps.toolchain_build.outcome == 'success' && steps.toolchain_cache.outputs.cache-hit != 'true'
+        continue-on-error: true
+        uses: actions/cache/save@caa296126883cff596d87d8935842f9db880ef25
+        with:
+          path: |
+            /mnt/ufi-openwrt/build_dir/host
+            /mnt/ufi-openwrt/build_dir/toolchain-*
+            /mnt/ufi-openwrt/staging_dir/host
+            /mnt/ufi-openwrt/staging_dir/toolchain-*
+          key: ${{ steps.toolchain_key.outputs.key }}
 
       - name: Compile firmware
         id: compile

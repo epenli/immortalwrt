@@ -77,11 +77,45 @@ jobs:
         for feed in packages luci routing telephony video; do
           printf '%s %s\n' "$feed" "$(git -C "feeds/$feed" rev-parse HEAD)"
         done > "$GITHUB_WORKSPACE/artifacts/feed-commits.txt"
+    - name: Fingerprint compatible toolchain inputs
+      id: toolchain_key
+      run: python3 build-support/toolchain-cache.py "$BUILD_DIR" jdcloud
+
+    - name: Restore complete host tools and cross toolchain
+      id: toolchain_cache
+      continue-on-error: true
+      uses: actions/cache/restore@caa296126883cff596d87d8935842f9db880ef25
+      with:
+        path: |
+          /mnt/jdcloud-openwrt/build_dir/host
+          /mnt/jdcloud-openwrt/build_dir/toolchain-*
+          /mnt/jdcloud-openwrt/staging_dir/host
+          /mnt/jdcloud-openwrt/staging_dir/toolchain-*
+        key: ${{ steps.toolchain_key.outputs.key }}
+
     - name: Download sources
       id: download
       run: |
         cd "$BUILD_DIR"
         make download -j8 V=s 2>&1 | tee "$GITHUB_WORKSPACE/logs/download.log"
+    - name: Prepare or reuse host tools and cross toolchain
+      id: toolchain_build
+      run: |
+        cd "$BUILD_DIR"
+        make -j"$(nproc)" tools/compile toolchain/compile 2>&1 | tee "$GITHUB_WORKSPACE/logs/toolchain.log"
+
+    - name: Save complete host tools and cross toolchain
+      if: steps.toolchain_build.outcome == 'success' && steps.toolchain_cache.outputs.cache-hit != 'true'
+      continue-on-error: true
+      uses: actions/cache/save@caa296126883cff596d87d8935842f9db880ef25
+      with:
+        path: |
+          /mnt/jdcloud-openwrt/build_dir/host
+          /mnt/jdcloud-openwrt/build_dir/toolchain-*
+          /mnt/jdcloud-openwrt/staging_dir/host
+          /mnt/jdcloud-openwrt/staging_dir/toolchain-*
+        key: ${{ steps.toolchain_key.outputs.key }}
+
     - name: Compile firmware
       id: compile
       run: |
@@ -149,4 +183,4 @@ jobs:
   workflow_dispatch: null
   push:
     branches: [main]
-    paths: ['jdcloud/**', '.github/workflows/jdcloud.yml']
+    paths: ['build-support/**', 'jdcloud/**', '.github/workflows/jdcloud.yml']
