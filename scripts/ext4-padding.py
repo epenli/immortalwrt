@@ -51,24 +51,27 @@ def normalize(path):
             raise ValueError('Unexpected bitmap geometry')
         groups = (blocks - first + bpg - 1) // bpg
         padding = []
-        descriptor_checksums = []
         for group in range(groups):
             descriptor = (first + 1) * block_size + group * 32
-            if ro_compat & 0x10:
-                descriptor_checksums.append((descriptor + 30, descriptor + 32))
             f.seek(descriptor + 4)
             bitmap = struct.unpack('<I', f.read(4))[0] * block_size
             if not 0 < bitmap < path.stat().st_size - block_size:
                 raise ValueError('Bitmap lies outside image')
             padding.append((bitmap + ipg // 8, bitmap + block_size))
-    # Standard fsck timestamps, mount count, state, lifetime write counter and checksum.
-    sb_fields = [(1024 + a, 1024 + b) for a, b in [(48, 54), (58, 60), (64, 68), (376, 384), (1020, 1024)]]
     with tempfile.TemporaryDirectory(prefix='ext4-repair-', dir=path.parent) as tmp:
         candidate = Path(tmp) / 'root.ext4'
         shutil.copyfile(path, candidate)
-        repair = check(candidate, '-fp')
-        if repair.returncode not in (0, 1) or check(candidate, '-fn').returncode != 0:
-            raise ValueError('Repair did not yield a clean filesystem')
+        # This layout has GDT_CSUM but not METADATA_CSUM: group descriptor
+        # checksums do not cover bitmap data. Write only bits beyond ipg.
+        # Avoid e2fsck repair mode, which also updates inode-table statistics.
+        with candidate.open('r+b') as f:
+            for start, end in padding:
+                f.seek(start)
+                f.write(b'\xff' * (end - start))
+            f.flush()
+            os.fsync(f.fileno())
+        if check(candidate, '-fn').returncode != 0:
+            raise ValueError('Padding normalization did not yield a clean filesystem')
         changed = 0
         changed_blocks = []
         with path.open('rb') as old, candidate.open('rb') as new:
@@ -83,8 +86,7 @@ def normalize(path):
                         if a == b:
                             continue
                         pos = offset + i
-                        if not (any(start <= pos < end for start, end in sb_fields + descriptor_checksums) or
-                                (b == 255 and any(start <= pos < end for start, end in padding))):
+                        if not (b == 255 and any(start <= pos < end for start, end in padding)):
                             raise ValueError(f'Repair changed non-padding data at byte {pos}')
                         changed += 1
                 offset += len(chunk)
@@ -92,4 +94,4 @@ def normalize(path):
                 raise ValueError('Repair changed image length')
         candidate.replace(path)
     return {'repaired': True, 'changed_bytes': changed, 'changed_blocks': changed_blocks,
-            'permitted_changes': 'inode bitmap padding, descriptor checksums and fsck superblock bookkeeping only'}
+            'permitted_changes': 'inode bitmap padding only; all other bytes unchanged'}
