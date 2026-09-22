@@ -93,6 +93,10 @@ jobs:
     - name: Collect images and matching packages
       run: |
         python3 jdcloud/build.py collect "$BUILD_DIR"
+    - name: Check firmware programs under ARM64 emulation
+      run: |
+        sudo apt-get install -y --no-install-recommends squashfs-tools qemu-user
+        python3 jdcloud/check-programs.py artifacts runtime-check
     - name: Upload firmware and reproducibility metadata
       if: success()
       uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a

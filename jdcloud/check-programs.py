@@ -9,7 +9,7 @@ import tarfile
 
 output, work = map(Path, sys.argv[1:])
 work.mkdir(parents=True, exist_ok=True)
-images = list(output.glob('*sysupgrade.bin'))
+images = list(output.rglob('*sysupgrade.bin'))
 assert len(images) == 1
 with tarfile.open(images[0]) as archive:
     roots = [m for m in archive.getmembers() if m.isfile() and m.name.endswith('/root')]
@@ -46,6 +46,6 @@ assert list((rootfs / 'lib/modules').rglob('f2fs.ko')), 'F2FS module absent'
 def digest(p):
     with p.open('rb') as stream:
         return hashlib.file_digest(stream, 'sha256').hexdigest()
-(output / 'SHA256SUMS').write_text(''.join(f'{digest(p)}  {p.name}\n'
-    for p in sorted(output.iterdir()) if p.is_file() and p.name != 'SHA256SUMS'))
+(output / 'SHA256SUMS').write_text(''.join(f'{digest(p)}  {p.relative_to(output).as_posix()}\n'
+    for p in sorted(output.rglob('*')) if p.is_file() and p.name != 'SHA256SUMS'))
 print(hysteria, xray, tested)
