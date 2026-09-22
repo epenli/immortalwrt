@@ -88,3 +88,11 @@ Windows 要区分两种驱动：正常系统的父设备用 USB Composite Device
 升级包上限 160 MiB，初始 rootfs 固定 512 MiB，配置归档上限 8 MiB；上传后至少保留 48 MiB 可用 RAM 和 24 MiB /tmp 空间。超限应精简构建或改用 Fastboot。
 
 这是单套 boot/rootfs 分区，不具备 A/B 回滚。断电或写入错误可能需要 Fastboot 恢复。脚本失败会退出，避免上游无条件报告成功并重启；这不代表可以承诺失败后仍正常运行。此适配已做文件模拟与实机 BusyBox 校验，但完整升级/保留配置重启尚待实测。
+
+## 第 9 次构建的重打包产物
+
+第 9 次的编译步骤成功，失败发生在后续 ext4 位图填充检查。单独的 `Validate and repack build 9` 工作流复用其保留产物，不重新编译设备上的程序。
+
+仅从成功的重打包任务下载 `ufi003-clean-9-repacked-编号`，不要刷原来的 `ufi003-unvalidated-9`。重打包会对离线镜像做受限修复、完整复检，并重新生成匹配的 Fastboot system.img、system.img.gz、sysupgrade.bin 和校验清单。使用同一份新产物里的 boot/system 配对。
+
+`repack-provenance.json` 记录原构建来源，`firmware/*sysupgrade.repair.json` 记录允许范围内的改动。修复不触碰文件内容；遇到其他文件系统错误或超出允许范围的字节变化时停止。第一次从第 7 次基础版安装仍走 Fastboot，在线升级后的完整启动尚待实测。

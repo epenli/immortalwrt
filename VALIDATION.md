@@ -21,3 +21,15 @@
 - 打包阶段使用 e2fsck -fn 检查原始文件系统；运行阶段流式解压，不将 512 MiB 原始镜像存入 RAM。
 - 保留配置时跳过 OpenStick 网络初始化和自定义主机名/USB/LAN 默认值；新装默认 IP 为 192.168.31.1。
 - 尚未验证真实 RAM 根切换、分区写入、配置恢复后启动和断电恢复。构建通过也不等于这些项目通过。
+
+
+## 第 9 次离线修复与重打包结果
+
+[重打包任务 3](https://github.com/epenli/ufi-clean-build/actions/runs/35686880231) 成功，产物 `ufi003-clean-9-repacked-3`。
+
+- 第 9 次全量编译、Kconfig 检查、升级脚本模拟测试和源码/ccache 缓存保存均成功；原失败位于 ext4 inode 位图尾部填充检查。
+- 使用 512 MiB 测试文件覆盖干净镜像、已知填充错误、重复运行和其他损坏拒绝；测试通过。
+- 修复脚本只修改 inode 位图中超出每组 inode 数量的填充位；逐字节检查禁止更改任何其他区域。未使用 e2fsck 自动修复模式。
+- 第 9 次实际镜像修复后 e2fsck -fn 返回 0；再生成 Android sparse 并还原成原始镜像，SHA256 与 sysupgrade 使用的原始镜像一致，第二次 e2fsck 也通过。
+- sysupgrade 升级包、Fastboot system.img/system.img.gz、profiles 索引与校验文件已同步更新。完整产物 SHA256SUMS 验证通过。
+- 这验证了离线镜像结构和打包流程，尚未刷入棒子验证新版本启动及在线升级。首次从第 7 次安装仍使用 Fastboot。

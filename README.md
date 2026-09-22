@@ -1,6 +1,6 @@
 # UF1003 MB V02 精简固件云编译
 
-这是 GitHub Actions 构建工程。基础版第 7 次构建已在 UF1003 MB V02 实机启动：Linux 6.18.35、APK、USB RNDIS、LuCI、Wi-Fi 和根分区扩容正常。蜂窝模块已识别，但 SIM/移动数据尚未验证。本次新增 PassWall 和 UF1003 专用 ext4 sysupgrade 适配，需重新完成构建及升级实测。
+这是 GitHub Actions 构建工程。基础版第 7 次构建已在 UF1003 MB V02 实机启动：Linux 6.18.35、APK、USB RNDIS、LuCI、Wi-Fi 和根分区扩容正常。蜂窝模块已识别，但 SIM/移动数据尚未验证。第 9 次已完成 PassWall、缓存配置和 UF1003 专用 ext4 sysupgrade 适配的编译。其位图填充问题已离线修复并重新打包，完整升级启动仍待实测。
 
 后续升级请阅读 [UPDATE.md](UPDATE.md)。首次安装带升级适配的版本仍使用 Fastboot；之后可使用本工程专用的 ext4 sysupgrade 包。升级写入与重启恢复尚未实机验证。
 
@@ -75,3 +75,9 @@
 Actions 缓存 dl 下载目录与 ccache 编译对象（ccache 上限 3 GiB）。第一次建立缓存，后续构建优先恢复；源码包仍由构建系统校验散列，ccache 按编译器内容和编译输入判断是否可复用。缓存不包含设备备份、个人配置或密码。
 
 编译失败时也尽可能保留已有编译缓存，统计写入日志的 ccache.log。缓存被回收或源码/编译器改变时会重新构建；工具链、链接和打包仍可能运行，不能承诺第二次不用 make 或固定缩短多少时间。没有缓存整个 build_dir/staging_dir，以免把旧内核模块或过期配置带入新镜像。
+
+## 第 9 次修复后的下载
+
+下载 [成功的重打包任务](https://github.com/epenli/ufi-clean-build/actions/runs/35686880231) 中的 `ufi003-clean-9-repacked-3`。原第 9 次构建的红色状态不会改变；不要使用原 `ufi003-unvalidated-9`。
+
+重打包复用第 9 次已编译的内容，只补齐 inode 位图无效范围内的填充位，并逐字节验证其他区域完全不变。ext4 只读复检、Fastboot 稀疏镜像往返转换一致性和完整 SHA256SUMS 检查均通过。两种升级格式及匹配软件包保存在同一新产物中。
