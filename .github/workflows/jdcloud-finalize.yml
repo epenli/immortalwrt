@@ -1,0 +1,30 @@
+name: Validate preserved JDCloud firmware
+on:
+  workflow_run:
+    workflows: [Build JDCloud RE-SS-01 clean PassWall]
+    types: [completed]
+permissions:
+  contents: read
+  actions: read
+jobs:
+  validate:
+    if: github.event.workflow_run.head_sha == 'c5d388b7add3d48934d2d282af6d7ca47c844c5d' && github.event.workflow_run.conclusion == 'failure'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+    - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+    - name: Download unchanged compiled outputs
+      uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+      with:
+        name: jdcloud-re-ss-01-unvalidated-${{ github.event.workflow_run.run_number }}
+        run-id: ${{ github.event.workflow_run.id }}
+        github-token: ${{ secrets.GITHUB_TOKEN }}
+        path: preserved
+    - name: Validate images and native Hysteria 2
+      run: python3 jdcloud/finalize.py preserved validated
+    - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+      with:
+        name: jdcloud-re-ss-01-hy2-validated-${{ github.event.workflow_run.run_number }}
+        path: validated/
+        if-no-files-found: error
+        retention-days: 14

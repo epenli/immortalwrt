@@ -143,8 +143,3 @@ jobs:
         if-no-files-found: warn
 'on':
   workflow_dispatch: null
-  push:
-    branches: [main]
-    paths:
-    - jdcloud/**
-    - .github/workflows/jdcloud.yml

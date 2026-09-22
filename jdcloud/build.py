@@ -105,7 +105,7 @@ def collect(build):
                 'kmod-nft-socket', 'kmod-nft-tproxy', 'ipq-wifi-jdcloud_re-ss-01'}
     if required - packages:
         raise SystemExit(f'Missing installed packages: {required - packages}')
-    versions = dict(line.split()[:2] for line in manifests[0].read_text().splitlines() if line.strip())
+    versions = dict(line.split(' - ', 1) for line in manifests[0].read_text().splitlines() if line.strip())
     if not versions['hysteria'].startswith('2.'):
         raise SystemExit('Expected Hysteria 2')
     if not versions['xray-core'].startswith('26.9.9-'):
