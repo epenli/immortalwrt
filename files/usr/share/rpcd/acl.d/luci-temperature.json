@@ -1,0 +1,13 @@
+{
+  "luci-temperature": {
+    "description": "Read device thermal sensors for the status overview",
+    "read": {
+      "ubus": { "file": ["list", "read"] },
+      "file": {
+        "/sys/class/thermal": ["list"],
+        "/sys/class/thermal/thermal_zone*/type": ["read"],
+        "/sys/class/thermal/thermal_zone*/temp": ["read"]
+      }
+    }
+  }
+}
