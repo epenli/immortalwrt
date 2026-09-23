@@ -39,7 +39,9 @@ uci commit gc
 
 电脑上运行 `adb devices`，确认唯一目标设备，再运行 `adb -s <ADB序列号> reboot bootloader`。此进入方式已在旧系统实测成功，新系统再次进入的完整路径仍应在刷写前验证。
 
-Windows 要区分两种驱动：正常系统的父设备用 USB Composite Device，子接口分别用 RNDIS/ADB；Fastboot 模式用 Android Bootloader Interface。不要把整个正常运行的复合设备绑定成 ADB。
+Windows 要区分两种驱动：正常系统的父设备用 USB Composite Device，新固件默认网卡子接口用 UsbNcm；Fastboot 模式用 Android Bootloader Interface。不要把整个正常运行的复合设备绑定成 ADB。
+
+全新安装或不保留配置升级默认使用 NCM（RNDIS、ECM、ADB 关闭）。保留配置升级会继续使用备份中的 USB 模式，包括原来的 RNDIS 设置。
 
 ## 4. 核对分区后刷写
 

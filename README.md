@@ -20,7 +20,7 @@
 - LuCI 管理界面、简体中文、防火墙、DHCP/DNS、SSH、IPv6。
 - 4G：ModemManager、QRTR、rmtfs、上游棒子初始化服务和 UFI003 基带固件。
 - Wi-Fi：wcn36xx 与相应固件。
-- USB RNDIS 网卡，适合在 Windows 上管理棒子。
+- USB 默认使用 NCM 网卡，关闭 RNDIS、ECM 和 ADB 端点；保留配置升级时沿用原来的 USB 设置。
 - PassWall（非 PassWall2）及中文界面，包含 Xray 和 sing-box 客户端引擎与所需内核模块；不预设订阅或节点，不默认启用代理。
 - 上游 `openstick-tweaks`、`gc`、`rootfs-resizer` 等硬件支持依赖。ADB 程序因上游依赖仍可能打包，但自定义默认设置关闭 ADB USB 端点。
 

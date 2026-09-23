@@ -6,10 +6,12 @@ uci set luci.main.lang='zh_cn'
 uci set network.lan.ipaddr='192.168.31.1'
 uci set network.lan.netmask='255.255.255.0'
 uci commit network
-# Keep USB RNDIS networking for Windows. Disable the optional ADB endpoint.
+# Use USB NCM networking on fresh installs. Keep restored USB settings intact.
 if uci -q get gc.config >/dev/null; then
     uci set gc.config.adb='0'
-    uci set gc.config.rndis='1'
+    uci set gc.config.rndis='0'
+    uci set gc.config.ecm='0'
+    uci set gc.config.ncm='1'
     uci commit gc
 fi
 uci commit system
