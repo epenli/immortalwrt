@@ -227,7 +227,7 @@ jobs:
         if: success()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
-          name: ufi003-clean-${{ github.run_number }}
+          name: 4g-dongle-clean-${{ github.run_number }}
           path: artifacts/
           retention-days: 14
           if-no-files-found: error
@@ -260,7 +260,7 @@ jobs:
         if: failure() && steps.compile.outcome == 'success'
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
-          name: ufi003-unvalidated-${{ github.run_number }}
+          name: 4g-dongle-unvalidated-${{ github.run_number }}
           path: |
             /mnt/ufi-openwrt/bin/targets/msm89xx/msm8916/
             artifacts/
@@ -272,7 +272,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
-          name: ufi003-build-logs-${{ github.run_number }}
+          name: 4g-dongle-build-logs-${{ github.run_number }}
           path: logs/
           retention-days: 14
           if-no-files-found: warn

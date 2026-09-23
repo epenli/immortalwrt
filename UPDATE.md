@@ -20,7 +20,7 @@
 
 ## 2. 下载并核对新构建
 
-从 Actions 下载成功构建的 `ufi003-clean-编号`，解压并核对 SHA256SUMS。使用同一包中 firmware 目录的：
+从 Actions 下载成功构建的 `4g-dongle-clean-编号`（旧构建仍叫 `ufi003-clean-编号`），解压并核对 SHA256SUMS。使用同一包中 firmware 目录的：
 
 - `*-openstick-ufi003-ext4-boot.img`
 - `*-openstick-ufi003-ext4-system.img`

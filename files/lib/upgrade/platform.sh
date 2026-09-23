@@ -5,7 +5,7 @@ REQUIRE_IMAGE_METADATA=1
 RAMFS_COPY_BIN="$RAMFS_COPY_BIN sha256sum head readlink df"
 
 ufi_error() {
-    echo "UFI upgrade: $*" >&2
+    echo "4G Dongle upgrade: $*" >&2
     return 1
 }
 
@@ -118,7 +118,7 @@ platform_do_upgrade() {
         [ "$(wc -c < "$UPGRADE_BACKUP")" -le 8388608 ] ||
             { ufi_error 'Configuration backup exceeds 8 MiB'; exit 1; }
     fi
-    echo 'UFI upgrade: writing rootfs from RAM; keep power connected.' >&2
+    echo '4G Dongle upgrade: writing rootfs from RAM; keep power connected.' >&2
     ufi_member "$image" root.ext4.gz | gzip -dc | dd of=/dev/mmcblk0p14 bs=1M conv=fsync || exit 1
     digest="$(head -c "$root_size" /dev/mmcblk0p14 | ufi_digest)" || exit 1
     [ "$digest" = "$root_sha" ] || { ufi_error 'Rootfs readback failed'; exit 1; }
@@ -136,5 +136,5 @@ platform_do_upgrade() {
     digest="$(head -c "$boot_size" /dev/mmcblk0p12 | ufi_digest)" || exit 1
     [ "$digest" = "$boot_sha" ] || { ufi_error 'Boot readback failed'; exit 1; }
     sync
-    echo 'UFI upgrade: both partitions verified; ready to reboot.' >&2
+    echo '4G Dongle upgrade: both partitions verified; ready to reboot.' >&2
 }

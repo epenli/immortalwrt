@@ -1,4 +1,4 @@
-# UF1003 MB V02 精简固件云编译
+# 4G Dongle 精简固件云编译（UFI003 MB V02）
 
 这是 GitHub Actions 构建工程。基础版第 7 次构建已在 UF1003 MB V02 实机启动：Linux 6.18.35、APK、USB RNDIS、LuCI、Wi-Fi 和根分区扩容正常。蜂窝模块已识别，但 SIM/移动数据尚未验证。第 9 次已完成 PassWall、缓存配置和 UF1003 专用 ext4 sysupgrade 适配的编译。其位图填充问题已离线修复并重新打包，完整升级启动仍待实测。
 
@@ -33,8 +33,8 @@
 1. 在 GitHub 新建一个仓库。按你的账户条件确认 Actions 可用；私有仓库的运行和存储受账户额度影响。
 2. 将这个目录的**内容**放到仓库根目录，包括隐藏目录 `.github`。不要把外层 `ufi-build` 目录整体嵌套进去。可以使用 GitHub Desktop 或 git 保证隐藏目录也上传。
 3. 确认仓库里存在 `.github/workflows/build.yml`，以及 `config.seed`、`feeds.conf`、`source.json`、`scripts/`、`files/`。
-4. 打开仓库的 **Actions → Build UFI clean firmware → Run workflow**。
-5. 等待运行结束，在该次运行页面下载 `ufi003-clean-运行编号`。如果失败，下载 `ufi003-build-logs-运行编号` 诊断。
+4. 打开仓库的 **Actions → Build 4G Dongle clean firmware → Run workflow**。
+5. 等待运行结束，在该次运行页面下载 `4g-dongle-clean-运行编号`。如果失败，下载 `4g-dongle-build-logs-运行编号` 诊断。
 
 工作流只允许手动触发；不会自动发布 Release，也不会连接或刷写你的棒子。无须填写棒子密码、SSH 密钥或 GitHub PAT。构建只使用公开源码与 GitHub 提供的只读令牌。
 
@@ -54,7 +54,7 @@
 
 ## 首次启动与配置
 
-构建文件没有写入个人密码、SIM 信息或现有配置。默认 LAN 地址 `192.168.31.1`，主机名 `UFI-Clean`；实际以启动结果为准。首次通过 USB 管理，设置管理员密码，再配置 Wi-Fi 密码和运营商 APN。Wi-Fi 驱动被编入，不代表热点会默认开启。
+构建文件没有写入个人密码、SIM 信息或现有配置。默认 LAN 地址 `192.168.31.1`，主机名 `4G-Dongle`；实际以启动结果为准。首次通过 USB 管理，设置管理员密码，再配置 Wi-Fi 密码和运营商 APN。Wi-Fi 驱动被编入，不代表热点会默认开启。
 
 硬编码公共 DNS 已去除，正常使用 DHCP/运营商提供的 DNS。不要把不匹配的其他目标软件源或滚动更新的内核模块强行装入此固件；保留本次构建的软件包。
 
@@ -84,7 +84,7 @@ Actions 缓存 dl 下载目录与 ccache 编译对象（ccache 上限 3 GiB）�
 
 ## 完整 PassWall 构建
 
-内置 Hysteria 2.7.0、Xray 26.9.9、sing-box、geoview、GeoIP 和 GeoSite。新装默认 sing-box DNS，保留配置升级沿用原设置。UFI 使用 ext4 根文件系统，不套用京东云 F2FS overlay 初始化方案。云端从实际 ext4 升级镜像提取程序，检查包版本，并用 ARM64 QEMU 测试 HY2、Xray DNS 配置与 Geo 规则转换。测试成功才发布成品，不等于已完成实机刷写验证。
+内置 Hysteria 2.7.0、Xray 26.9.9、sing-box、geoview、GeoIP 和 GeoSite。新装默认 sing-box DNS，保留配置升级沿用原设置。4G Dongle 使用 ext4 根文件系统，不套用京东云 F2FS overlay 初始化方案。云端从实际 ext4 升级镜像提取程序，检查包版本，并用 ARM64 QEMU 测试 HY2、Xray DNS 配置与 Geo 规则转换。测试成功才发布成品，不等于已完成实机刷写验证。
 
 ## 短信管理
 
@@ -97,3 +97,5 @@ Actions 缓存 dl 下载目录与 ccache 编译对象（ccache 上限 3 GiB）�
 内核加入 BAM-DMUX 网络接口统计补丁，使 `wwan0` 的 RX/TX 包数和字节数供 LuCI 与 `netdev` LED 读取。LED 配置选择“网络设备活动”，设备选 `wwan0`，模式选 RX/TX。`phy0rx/phy0tx` 是 Wi-Fi 活动，`usb-gadget` 是 USB 活动。不会覆盖保留的 LED 配置，也不会操作 SIM 控制 GPIO。
 
 补丁基于上游 v4 提案并适配 6.18.35，尚待新镜像实机验证。TX 统计的是驱动接受的包，包含延迟发送队列，并非运营商确认送达或计费流量。
+
+命名说明：项目显示名为 4G Dongle；新构建下载包采用 `4g-dongle-*` 前缀。已运行/历史任务及包名不追溯改名。硬件型号 UFI003、设备树、升级格式标识和缓存键保持兼容。
