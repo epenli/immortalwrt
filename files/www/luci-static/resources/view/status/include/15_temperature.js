@@ -4,12 +4,9 @@
 
 var thermalPath = '/sys/class/thermal';
 var labels = {
-	'cpu0-1-thermal': 'CPU 0–1',
-	'cpu2-3-thermal': 'CPU 2–3',
+	'camera-thermal': 'SoC',
 	'modem-thermal': '调制解调器',
-	'gpu-thermal': 'GPU',
-	'pm8916-thermal': '电源管理芯片（PM8916）',
-	'camera-thermal': 'SoC（camera-thermal）'
+	'pm8916-thermal': '电源管理芯片'
 };
 var order = Object.keys(labels);
 
@@ -36,14 +33,10 @@ return baseclass.extend({
 		});
 	},
 	render: function(sensors) {
-		if (!sensors.length)
-			return E('p', {}, '未检测到可读取的温度传感器');
 		var table = E('table', { 'class': 'table' });
-		sensors.sort(function(a, b) {
-			var ai = order.indexOf(a.type), bi = order.indexOf(b.type);
-			return (ai < 0 ? order.length : ai) - (bi < 0 ? order.length : bi)
-				|| a.type.localeCompare(b.type);
-		}).forEach(function(sensor) {
+		order.forEach(function(type) {
+			var sensor = sensors.find(function(item) { return item.type === type; })
+				|| { type: type, temperature: null };
 			table.appendChild(E('tr', { 'class': 'tr' }, [
 				E('td', { 'class': 'td left', 'width': '33%' }, labels[sensor.type] || sensor.type),
 				E('td', { 'class': 'td left' }, sensor.temperature == null
