@@ -25,7 +25,7 @@
 
 ## 第 9 次离线修复与重打包结果
 
-[重打包任务 3](https://github.com/epenli/ufi-clean-build/actions/runs/35686880231) 成功，产物 `ufi003-clean-9-repacked-3`。
+[重打包任务 3](https://github.com/epenli/immortalwrt/actions/runs/35686880231) 成功，产物 `ufi003-clean-9-repacked-3`。
 
 - 第 9 次全量编译、Kconfig 检查、升级脚本模拟测试和源码/ccache 缓存保存均成功；原失败位于 ext4 inode 位图尾部填充检查。
 - 使用 512 MiB 测试文件覆盖干净镜像、已知填充错误、重复运行和其他损坏拒绝；测试通过。

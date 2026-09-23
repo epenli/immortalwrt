@@ -1,4 +1,13 @@
-# 4G Dongle 精简固件云编译（UFI003 MB V02）
+# ImmortalWrt 固件云编译
+
+本仓库通过 GitHub Actions 编译 JDCloud 和 4G Dongle 的 ImmortalWrt 固件，两类设备使用各自的配置与工作流。
+
+| 设备 | 编译工作流 | 说明 |
+| --- | --- | --- |
+| JDCloud RE-SS-01 | [Build JDCloud RE-SS-01 clean PassWall](https://github.com/epenli/immortalwrt/actions/workflows/jdcloud.yml) | [JDCloud 文档](jdcloud/README.md) |
+| 4G Dongle（UFI003 MB V02） | [Build 4G Dongle clean firmware](https://github.com/epenli/immortalwrt/actions/workflows/build.yml) | 下文及 [升级说明](UPDATE.md) |
+
+## 4G Dongle 精简固件（UFI003 MB V02）
 
 这是 GitHub Actions 构建工程。基础版第 7 次构建已在 UF1003 MB V02 实机启动：Linux 6.18.35、APK、USB RNDIS、LuCI、Wi-Fi 和根分区扩容正常。蜂窝模块已识别，但 SIM/移动数据尚未验证。第 9 次已完成 PassWall、缓存配置和 UF1003 专用 ext4 sysupgrade 适配的编译。其位图填充问题已离线修复并重新打包，完整升级启动仍待实测。
 
@@ -36,7 +45,7 @@
 4. 打开仓库的 **Actions → Build 4G Dongle clean firmware → Run workflow**。
 5. 等待运行结束，在该次运行页面下载 `4g-dongle-clean-运行编号`。如果失败，下载 `4g-dongle-build-logs-运行编号` 诊断。
 
-工作流只允许手动触发；不会自动发布 Release，也不会连接或刷写你的棒子。无须填写棒子密码、SSH 密钥或 GitHub PAT。构建只使用公开源码与 GitHub 提供的只读令牌。
+工作流支持手动触发，也会在 main 分支相关构建文件变更时自动触发；不会自动发布 Release，也不会连接或刷写你的棒子。无须填写棒子密码、SSH 密钥或 GitHub PAT。构建只使用公开源码与 GitHub 提供的只读令牌。
 
 首次全量编译可能需要数小时，具体时间取决于 Runner 和下载速度。本工作流设定 350 分钟超时；不保证在该时间内完成。产物和日志保留 14 天，请及时下载。
 
@@ -78,7 +87,7 @@ Actions 缓存 dl 下载目录与 ccache 编译对象（ccache 上限 3 GiB）�
 
 ## 第 9 次修复后的下载
 
-下载 [成功的重打包任务](https://github.com/epenli/ufi-clean-build/actions/runs/35686880231) 中的 `ufi003-clean-9-repacked-3`。原第 9 次构建的红色状态不会改变；不要使用原 `ufi003-unvalidated-9`。
+下载 [成功的重打包任务](https://github.com/epenli/immortalwrt/actions/runs/35686880231) 中的 `ufi003-clean-9-repacked-3`。原第 9 次构建的红色状态不会改变；不要使用原 `ufi003-unvalidated-9`。
 
 重打包复用第 9 次已编译的内容，只补齐 inode 位图无效范围内的填充位，并逐字节验证其他区域完全不变。ext4 只读复检、Fastboot 稀疏镜像往返转换一致性和完整 SHA256SUMS 检查均通过。两种升级格式及匹配软件包保存在同一新产物中。
 
@@ -98,4 +107,4 @@ Actions 缓存 dl 下载目录与 ccache 编译对象（ccache 上限 3 GiB）�
 
 补丁基于上游 v4 提案并适配 6.18.35，尚待新镜像实机验证。TX 统计的是驱动接受的包，包含延迟发送队列，并非运营商确认送达或计费流量。
 
-命名说明：项目显示名为 4G Dongle；新构建下载包采用 `4g-dongle-*` 前缀。已运行/历史任务及包名不追溯改名。硬件型号 UFI003、设备树、升级格式标识和缓存键保持兼容。
+命名说明：仓库名为 `immortalwrt`，共用于 JDCloud 和 4G Dongle 编译；4G 棒子的显示名为 4G Dongle，其新构建下载包采用 `4g-dongle-*` 前缀。已运行/历史任务及包名不追溯改名。硬件型号 UFI003、设备树、升级格式标识和缓存键保持兼容。

@@ -47,7 +47,7 @@ jobs:
           python3 - <<'PY'
           import json, pathlib, shutil
           from urllib.request import urlopen
-          run = json.load(urlopen('https://api.github.com/repos/epenli/ufi-clean-build/actions/runs/35658036739'))
+          run = json.load(urlopen('https://api.github.com/repos/epenli/immortalwrt/actions/runs/35658036739'))
           assert run['head_sha'] == 'dc78d6bbbc3949d9ea572fd963644fd44a0a6d50'
           matches = list(pathlib.Path('recovered').rglob('expanded.config'))
           assert len(matches) == 1, matches
