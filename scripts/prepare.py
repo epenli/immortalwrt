@@ -69,6 +69,12 @@ for old, new in (
     xray_recipe = xray_recipe.replace(old, new)
 xray.write_text(xray_recipe)
 subprocess.run([sys.executable, str(recipe / 'scripts/prepare-sms.py'), str(source)], check=True)
+# Make kernel preparation apply the reviewed BAM-DMUX accounting backport.
+patch_dir = source / 'target/linux/msm89xx/patches-6.18'
+if not patch_dir.is_dir():
+    raise SystemExit('Unexpected MSM89xx kernel patch directory')
+shutil.copyfile(recipe / 'build-support/patches/994-qcom-bam-dmux-netdev-statistics.patch',
+                patch_dir / '994-qcom-bam-dmux-netdev-statistics.patch')
 shutil.copyfile(recipe / 'config.seed', source / '.config')
 shutil.copytree(recipe / 'files', source / 'files', dirs_exist_ok=True)
 (source / 'files/etc/uci-defaults/zz-ufi-local').chmod(0o755)
