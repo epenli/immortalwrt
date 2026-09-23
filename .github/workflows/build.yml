@@ -118,7 +118,7 @@ jobs:
           python3 "$GITHUB_WORKSPACE/scripts/check-config.py" .config
           cp .config "$GITHUB_WORKSPACE/artifacts/expanded.config"
           ./scripts/diffconfig.sh > "$GITHUB_WORKSPACE/artifacts/diffconfig"
-          for feed in openstick packages luci routing telephony video; do
+          for feed in openstick packages luci routing telephony video smsmanager; do
             printf '%s %s\n' "$feed" "$(git -C "feeds/$feed" rev-parse HEAD)"
           done > "$GITHUB_WORKSPACE/artifacts/feed-commits.txt"
 

@@ -68,6 +68,7 @@ for old, new in (
         raise SystemExit('Pinned Xray xray_recipe changed; review the backport')
     xray_recipe = xray_recipe.replace(old, new)
 xray.write_text(xray_recipe)
+subprocess.run([sys.executable, str(recipe / 'scripts/prepare-sms.py'), str(source)], check=True)
 shutil.copyfile(recipe / 'config.seed', source / '.config')
 shutil.copytree(recipe / 'files', source / 'files', dirs_exist_ok=True)
 (source / 'files/etc/uci-defaults/zz-ufi-local').chmod(0o755)
