@@ -1,0 +1,54 @@
+{
+  "luci-jd-temperature": {
+    "description": "Read JDCloud temperatures for the status overview",
+    "read": {
+      "ubus": {
+        "file": [
+          "list",
+          "read"
+        ],
+        "iwinfo": [
+          "freqlist"
+        ]
+      },
+      "file": {
+        "/sys/class/thermal": [
+          "list"
+        ],
+        "/sys/class/thermal/thermal_zone*/type": [
+          "read"
+        ],
+        "/sys/class/thermal/thermal_zone*/temp": [
+          "read"
+        ],
+        "/sys/class/ieee80211": [
+          "list"
+        ],
+        "/sys/class/ieee80211/phy*": [
+          "list"
+        ],
+        "/sys/class/ieee80211/phy*/hwmon*/name": [
+          "read"
+        ],
+        "/sys/class/ieee80211/phy*/hwmon*/temp1_input": [
+          "read"
+        ],
+        "/sys/devices/virtual/thermal/thermal_zone*/type": [
+          "read"
+        ],
+        "/sys/devices/virtual/thermal/thermal_zone*/temp": [
+          "read"
+        ],
+        "/sys/devices/platform/soc@0/c000000.wifi/ieee80211/phy*": [
+          "list"
+        ],
+        "/sys/devices/platform/soc@0/c000000.wifi/ieee80211/phy*/hwmon*/name": [
+          "read"
+        ],
+        "/sys/devices/platform/soc@0/c000000.wifi/ieee80211/phy*/hwmon*/temp1_input": [
+          "read"
+        ]
+      }
+    }
+  }
+}

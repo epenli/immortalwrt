@@ -33,6 +33,7 @@ def prepare(build):
         recipe = recipe.replace(old, new)
     xray.write_text(recipe)
     shutil.copyfile(RECIPE / 'config.seed', build / '.config')
+    shutil.copytree(RECIPE / 'files', build / 'files', dirs_exist_ok=True)
     defaults = build / 'files/etc/uci-defaults/99-jdcloud-clean'
     defaults.parent.mkdir(parents=True, exist_ok=True)
     defaults.write_text("""#!/bin/sh

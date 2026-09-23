@@ -22,3 +22,5 @@
 跨版本迁移配置应另行检查，避免直接覆盖新版所有系统文件。
 
 完整分流依赖：内置 geoview、v2ray-geoip 和 v2ray-geosite。成品检查会在 ARM64 模拟环境实际运行 geoview，将 GeoIP cn 和 GeoSite disney 转换为 SRS，缺失或转换失败则不发布。节点密码等私人配置不写入公开固件。
+
+设备温度：LuCI「状态 → 概览」按 CPU、2.4 GHz 无线、5 GHz 无线显示，其他六个 SoC 热区位于可展开详情。无线按 PHY 支持频率匹配频段，动态发现 ath11k hwmon，不依赖 hwmon 编号；重复 thermal/hwmon 读数不重复显示。读取失败或无线不可识别时显示暂不可用。仅读取传感器，不修改温控阈值。JD 专用文件从 jdcloud/files 加入镜像，不影响 4G Dongle 的三项温度显示。
