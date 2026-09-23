@@ -1,4 +1,4 @@
-name: Build UFI clean firmware
+name: Build 4G Dongle clean firmware
 
 on:
   workflow_dispatch:
