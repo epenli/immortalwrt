@@ -184,3 +184,20 @@ jobs:
           name: passwall-apk-${{ matrix.device }}-logs-${{ github.run_number }}
           path: logs/
           retention-days: 14
+
+  publish:
+    name: Publish verified component updates
+    needs: packages
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+      - uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131
+        with:
+          pattern: passwall-apk-*
+          path: bundles
+      - name: Publish immutable binaries and device channels
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: python3 passwall/publish-components.py bundles

@@ -58,3 +58,24 @@ apk add --simulate --allow-untrusted \
 
 工作流仅在手动运行或 `passwall/`、本工作流文件变更时启动；
 新增或修改这套流程不会触发原来的整机固件构建。
+
+## 在 PassWall 页面更新核心
+
+京东云和 4G Dongle 的新固件，以及本工作流生成的 PassWall APK，均集成
+`component-source.lua`。原有“组件更新”的按钮操作保持不变，检查并下载
+`epenli/immortalwrt` 的已验证构建。第一次成功发布之前，页面会明确提示尚无成品。
+不安装计划任务，不后台自动替换核心，不修改节点、订阅或代理规则。
+
+支持 Xray、sing-box、Hysteria、ChinaDNS-NG、Geoview；PassWall 本体仍通过 APK
+更新，规则数据沿用其规则更新入口。只有更新固定源码并成功发布更高程序版本，
+才会显示“有更新”；同版本重建不会假装成新版本。
+
+两个构建都通过后，独立发布任务才拥有 contents:write 权限。它将成品核心放在
+`passwall-build-运行ID-重试编号` Release，随后更新 `passwall-components-jdcloud`
+和 `passwall-components-ufi` 中的 components.json。清单指向具体构建的固定地址，
+含版本、大小和 SHA-256；客户端下载使用 HTTPS 证书验证，替换前复核哈希和版本，
+同时执行新核心检测当前系统的动态库兼容性。更新保留一份 `.passwall-previous`
+备份。软件包版本记录不会因直接替换核心自动改变，以组件页面的运行版本为准。
+
+现机适配只需备份并更新 api.lua、app_update.lua 和新增 component-source.lua；
+不需要刷机。普通上游 PassWall APK 会覆盖适配，因此后续应使用本工程生成的 APK。

@@ -80,10 +80,31 @@ def main(build, output, device):
     run(apk, 'extract', '--allow-untrusted', '--force-overwrite', '--no-chown',
         '--destination', root, *sorted(roots['packages'].glob('*.apk')))
     checks = []
+    components = {}
+    component_dir = output / 'components'
+    component_dir.mkdir()
     for binary, args in [('hysteria', ['version']), ('sing-box', ['version']),
-                         ('xray', ['version']), ('geoview', ['-version'])]:
+                         ('xray', ['version']), ('geoview', ['-version']),
+                         ('chinadns-ng', ['-V'])]:
         result = run('qemu-aarch64', '-L', root, root / 'usr/bin' / binary, *args)
         checks.append(f'{binary}:\n{result}')
+        patterns = {'hysteria': r'(?m)^Version:\s*(\S+)',
+                    'sing-box': r'(?m)^sing-box version\s+(\S+)',
+                    'xray': r'(?m)^Xray\s+(\S+)',
+                    'geoview': r'(?m)^Geoview\s+(\S+)',
+                    'chinadns-ng': r'(?mi)^chinadns-ng\s+(\S+)'}
+        match = re.search(patterns[binary], result)
+        if not match:
+            raise SystemExit(f'Cannot read {binary} runtime version: {result}')
+        version = match[1].lstrip('v')
+        filename = f'{device}-{binary}-linux-arm64'
+        target = component_dir / filename
+        shutil.copyfile(root / 'usr/bin' / binary, target)
+        components[binary] = dict(version=version, filename=filename,
+                                  sha256=digest(target), size=target.stat().st_size)
+    (component_dir / 'components.json').write_text(json.dumps(
+        dict(schema=1, device=device, components=components), indent=2) + '\n')
+
     for kind, code in [('geoip', 'cn'), ('geosite', 'disney')]:
         data = root / 'usr/share/v2ray' / f'{kind}.dat'
         converted = build / f'passwall-{kind}-test.srs'
