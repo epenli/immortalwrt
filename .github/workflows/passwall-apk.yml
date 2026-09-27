@@ -137,6 +137,39 @@ jobs:
             ${{ env.BUILD_DIR }}/staging_dir/host
             ${{ env.BUILD_DIR }}/staging_dir/toolchain-*
           key: ${{ steps.toolchain_key.outputs.key }}
+      - name: Fingerprint compatible package build state
+        id: package_key
+        run: |
+          python3 passwall/test-build-cache.py
+          python3 passwall/build-cache.py "$BUILD_DIR" "$DEVICE" '${{ steps.toolchain_key.outputs.key }}'
+      - name: Restore Go compilation cache
+        id: go_cache
+        continue-on-error: true
+        uses: actions/cache/restore@caa296126883cff596d87d8935842f9db880ef25
+        with:
+          path: ${{ env.BUILD_DIR }}/tmp/go-build
+          key: ${{ steps.package_key.outputs.go }}-${{ github.run_id }}-${{ github.run_attempt }}
+          restore-keys: |
+            ${{ steps.package_key.outputs.go }}-
+      - name: Restore exact-compatible package build state
+        id: package_cache
+        continue-on-error: true
+        uses: actions/cache/restore@caa296126883cff596d87d8935842f9db880ef25
+        with:
+          # Keep stamps, staged dependencies and outputs together. No fallback keys.
+          path: |
+            ${{ env.BUILD_DIR }}/build_dir/target-*
+            ${{ env.BUILD_DIR }}/build_dir/hostpkg
+            ${{ env.BUILD_DIR }}/staging_dir/target-*
+            ${{ env.BUILD_DIR }}/staging_dir/hostpkg
+            ${{ env.BUILD_DIR }}/bin
+          key: ${{ steps.package_key.outputs.state }}
+      - name: Rebuild current PassWall UI on a cache hit
+        if: steps.package_cache.outputs.cache-hit == 'true'
+        run: |
+          make -C "$BUILD_DIR" package/feeds/luci/luci-app-passwall/clean
+          # Explicitly remove old APKs, including translations, before collection.
+          find "$BUILD_DIR/bin" -type f \( -name 'luci-app-passwall-*.apk' -o -name 'luci-i18n-passwall-*.apk' \) -delete
       - name: Build kernel prerequisites and PassWall packages only
         id: compile
         run: |
@@ -154,10 +187,29 @@ jobs:
                    package/feeds/packages/xray-core/compile
                    package/feeds/packages/geoview/compile
                    package/feeds/packages/v2ray-geodata/compile)
-          make -j"$(nproc)" "${targets[@]}" 2>&1 | tee "$GITHUB_WORKSPACE/logs/packages.log" || \
-            make -j1 "${targets[@]}" V=s 2>&1 | tee "$GITHUB_WORKSPACE/logs/packages-retry.log"
+          make -j"$(nproc)" GO_BUILD_CACHE_DIR="$BUILD_DIR/tmp/go-build" "${targets[@]}" 2>&1 | tee "$GITHUB_WORKSPACE/logs/packages.log" || \
+            make -j1 GO_BUILD_CACHE_DIR="$BUILD_DIR/tmp/go-build" "${targets[@]}" V=s 2>&1 | tee "$GITHUB_WORKSPACE/logs/packages-retry.log"
       - name: Validate and collect installable APKs
         run: python3 passwall/collect.py "$BUILD_DIR" artifacts "$DEVICE"
+      - name: Save validated package build state
+        if: success() && steps.package_cache.outputs.cache-hit != 'true'
+        continue-on-error: true
+        uses: actions/cache/save@caa296126883cff596d87d8935842f9db880ef25
+        with:
+          path: |
+            ${{ env.BUILD_DIR }}/build_dir/target-*
+            ${{ env.BUILD_DIR }}/build_dir/hostpkg
+            ${{ env.BUILD_DIR }}/staging_dir/target-*
+            ${{ env.BUILD_DIR }}/staging_dir/hostpkg
+            ${{ env.BUILD_DIR }}/bin
+          key: ${{ steps.package_key.outputs.state }}
+      - name: Save Go compilation cache
+        if: always() && !cancelled() && steps.compile.outcome == 'success'
+        continue-on-error: true
+        uses: actions/cache/save@caa296126883cff596d87d8935842f9db880ef25
+        with:
+          path: ${{ env.BUILD_DIR }}/tmp/go-build
+          key: ${{ steps.package_key.outputs.go }}-${{ github.run_id }}-${{ github.run_attempt }}
       - name: Upload PassWall APK bundle
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
         with:
