@@ -144,8 +144,11 @@ jobs:
           # Compile the matching kernel for kmod ABI metadata; no rootfs/image target.
           make -j"$(nproc)" target/linux/compile 2>&1 | tee "$GITHUB_WORKSPACE/logs/kernel.log" || \
             make -j1 target/linux/compile V=s 2>&1 | tee "$GITHUB_WORKSPACE/logs/kernel-retry.log"
+          # Kconfig selections are not make dependencies of an individual package.
+          # PassWall 26.9.27 selects ipt2socks separately for transparent proxying.
           targets=(package/toolchain/compile package/kernel/linux/compile
                    package/feeds/luci/luci-app-passwall/compile
+                   package/feeds/packages/ipt2socks/compile
                    package/feeds/packages/hysteria/compile
                    package/feeds/packages/sing-box/compile
                    package/feeds/packages/xray-core/compile
