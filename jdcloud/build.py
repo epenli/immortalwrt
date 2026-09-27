@@ -32,6 +32,7 @@ def prepare(build):
             raise SystemExit('Pinned Xray recipe changed; review the backport')
         recipe = recipe.replace(old, new)
     xray.write_text(recipe)
+    subprocess.run([sys.executable, str(RECIPE.parent / "passwall/install-source.py"), str(build)], check=True)
     shutil.copyfile(RECIPE / 'config.seed', build / '.config')
     shutil.copytree(RECIPE / 'files', build / 'files', dirs_exist_ok=True)
     defaults = build / 'files/etc/uci-defaults/99-jdcloud-clean'

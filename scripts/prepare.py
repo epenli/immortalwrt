@@ -80,3 +80,5 @@ shutil.copytree(recipe / 'files', source / 'files', dirs_exist_ok=True)
 (source / 'files/etc/uci-defaults/zz-ufi-local').chmod(0o755)
 install_ufi_features(source)
 print('Prepared UFI003 profile with UFI001C DTS; upstream hardware services retained.')
+
+subprocess.run([sys.executable, str(recipe / "passwall/install-source.py"), str(source)], check=True)
