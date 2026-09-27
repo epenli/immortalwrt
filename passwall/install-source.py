@@ -65,13 +65,10 @@ def install(root, live=False):
         template.write_text(text.replace(anchor, patch + '\n' + anchor))
     text = page.read_text()
     label = 's.description = "更新来源：epenli/immortalwrt 已验证构建。本体与核心均可在此检查并更新；本体安装前自动备份配置，代理可能短暂中断。"\n'
-    needle = 's:appendTemplate("/app_update/app_version", {com = com})'
     old_label = 's.description = "核心组件来源：epenli/immortalwrt 已验证构建。点击检查更新后安装；PassWall 本体仍通过 APK 更新。"\n'
-    text = text.replace(old_label, '')
-    if label not in text:
-        if text.count(needle) != 1:
-            raise SystemExit('PassWall component page changed')
-        page.write_text(text.replace(needle, label + needle))
+    # Remove legacy update-source banners, including on previously patched live roots.
+    text = text.replace(old_label, '').replace(label, '')
+    page.write_text(text)
 
 
 if __name__ == '__main__':
