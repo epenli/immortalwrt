@@ -15,7 +15,7 @@
 - `SHA256SUMS`：整个下载包的校验清单。
 
 沿用对应固件的 source.json、feeds.conf、配置和修补脚本。当前锁定的
-PassWall 为 26.9.16，Xray 为 26.9.9；**重新运行不会自动追逐上游最新版**。
+PassWall 为 26.9.27，Xray 为 26.9.9；**重新运行不会自动追逐上游最新版**。
 如需更新版本，应审核并更新固定的 feed 提交和兼容性修补。
 构建产物不包含设备的节点、订阅、密码、SIM 信息或现机配置。
 
@@ -66,7 +66,7 @@ apk add --simulate --allow-untrusted \
 `epenli/immortalwrt` 的已验证构建。第一次成功发布之前，页面会明确提示尚无成品。
 不安装计划任务，不后台自动替换核心，不修改节点、订阅或代理规则。
 
-支持 Xray、sing-box、Hysteria、ChinaDNS-NG、Geoview；PassWall 本体仍通过 APK
+支持 Xray、sing-box、Hysteria、ChinaDNS-NG、Geoview；PassWall 本体通过同一页面下载并安装本工程的 APK
 更新，规则数据沿用其规则更新入口。只有更新固定源码并成功发布更高程序版本，
 才会显示“有更新”；同版本重建不会假装成新版本。
 
@@ -79,3 +79,17 @@ apk add --simulate --allow-untrusted \
 
 现机适配只需备份并更新 api.lua、app_update.lua 和新增 component-source.lua；
 不需要刷机。普通上游 PassWall APK 会覆盖适配，因此后续应使用本工程生成的 APK。
+
+
+## PassWall 本体一键更新
+
+顶部 PassWall “检查更新”读取本工程的已发布 APK 版本；点击“更新”通过带 CSRF
+校验的 POST 请求安装对应设备的本体及中文包。下载使用 HTTPS，校验 SHA-256，
+先用 APK 离线模拟安装；依赖不满足则停止，不更新系统库或内核模块。
+
+安装前将配置与规则备份到设备 `/etc/passwall-before-apk-update.tar.gz`，并处理
+26.9.27 的规则目录迁移。该备份不上传 GitHub。成功后清除版本缓存，原来正在
+运行的代理服务会重启。失败时显示错误和备份路径，不宣称自动恢复全部软件包。
+这里只负责用户点击更新，不设置定时安装任务。
+
+PassWall 源码另固定在 `passwall/source.json`，不整体更新 LuCI 或所有 feeds。

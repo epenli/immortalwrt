@@ -37,6 +37,19 @@ def main(root):
                 raise SystemExit('Component checksum mismatch')
             info['url'] = f'https://github.com/{repo}/releases/download/{tag}/{filename}'
             assets.append(path)
+        app = document.get('passwall', {})
+        apk_entries = app.get('packages', [])
+        if len(apk_entries) != 2 or {p['name'] for p in apk_entries} != {'luci-app-passwall', 'luci-i18n-passwall-zh-cn'}:
+            raise SystemExit('Missing PassWall APK pair')
+        for info in apk_entries:
+            filename = info['filename']
+            if Path(filename).name != filename or not filename.startswith(device + '-') or not filename.endswith('.apk'):
+                raise SystemExit('Invalid APK asset name')
+            path = directory / filename
+            if path.stat().st_size != info['size'] or hashlib.sha256(path.read_bytes()).hexdigest() != info['sha256']:
+                raise SystemExit('APK checksum mismatch')
+            info['url'] = f'https://github.com/{repo}/releases/download/{tag}/{filename}'
+            assets.append(path)
         document['recipe_commit'] = os.environ['GITHUB_SHA']
         document['build'] = tag
         channels[device] = document

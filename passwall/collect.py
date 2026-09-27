@@ -114,6 +114,19 @@ def main(build, output, device):
         if not converted.is_file() or not converted.stat().st_size:
             raise SystemExit(f'Geo conversion failed: {kind}')
         checks.append(f'{kind}: {code} conversion passed')
+    # Publish only the UI APK pair through the in-page self updater.
+    app_packages = []
+    for name in ('luci-app-passwall', 'luci-i18n-passwall-zh-cn'):
+        record = next(r for r in records if r['name'] == name)
+        original = output / record['file']
+        filename = f"{device}-{original.name}"
+        shutil.copyfile(original, component_dir / filename)
+        app_packages.append(dict(name=name, filename=filename, version=record['version'],
+                                 size=original.stat().st_size, sha256=record['sha256']))
+    document = json.loads((component_dir / 'components.json').read_text())
+    document['passwall'] = dict(version=seen['luci-app-passwall'][0], packages=app_packages)
+    (component_dir / 'components.json').write_text(json.dumps(document, indent=2) + '\n')
+    shutil.copyfile(Path(__file__).with_name('source.json'), output / 'passwall-source.json')
     public_key = build / 'public-key.pem'
     if public_key.exists():
         shutil.copyfile(public_key, output / 'build-public-key.pem')
