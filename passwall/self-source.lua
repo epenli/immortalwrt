@@ -61,9 +61,12 @@ function M.install(api)
                 files[#files+1] = api.util.shellquote(path)
             end
             local packages = table.concat(files,' ')
+            -- LuCI may close stdin. APK can then allocate root_fd=0, which its
+            -- script launcher overwrites with a pipe before fchdir(root_fd).
+            -- Always open fd 0 before starting APK, including the dry run.
             local command = 'apk --no-network --repositories-file /dev/null add --allow-untrusted '
             local log = lock .. '/result.log'
-            if sys.call(command .. '--simulate ' .. packages .. ' >' .. log .. ' 2>&1') ~= 0 then
+            if sys.call(command .. '--simulate ' .. packages .. ' </dev/null >' .. log .. ' 2>&1') ~= 0 then
                 return fail('依赖检查未通过，未安装：' .. (fs.readfile(log) or ''))
             end
             -- Keep the previous successful backup until a new archive is complete.
@@ -82,7 +85,7 @@ function M.install(api)
                 if not fs.access(dest) and fs.access(old) and not fs.copy(old,dest) then return fail('规则迁移失败，未安装') end
             end
             local running = sys.call('pgrep -f "[/]tmp/etc/passwall" >/dev/null') == 0
-            local rc = sys.call(command .. packages .. ' >' .. log .. ' 2>&1')
+            local rc = sys.call(command .. packages .. ' </dev/null >' .. log .. ' 2>&1')
             local result = fs.readfile(log) or ''
             fs.remove(api.CACHE_PATH .. '/passwall_version')
             if rc ~= 0 or installed() ~= app.version then

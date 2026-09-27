@@ -11,7 +11,7 @@ local api={jsonc=json,CACHE_PATH='/tmp/test-cache',trim=function(s)return s:matc
  fs={readfile=function(p)return files[p]end,mkdir=function(p)files[p]=true;return true end,
  remove=function(p)files[p]=nil end,rmdir=function(p)files[p]=nil end,stat=function()return 10 end},
  sys={exec=function(cmd)if cmd:match('^apk query')then return '[{"version":"26.9.16-r1"}]'end;return checksum..' file'end,
- call=function(cmd)calls[#calls+1]=cmd;assert(cmd:find('%-%-simulate'),'unexpected install or migration');return 1 end},
+ call=function(cmd)calls[#calls+1]=cmd;assert(cmd:find('%-%-simulate'),'unexpected install or migration');assert(cmd:find(' </dev/null ',1,true),'APK stdin must be open');return 1 end},
  curl_auto=function(url,path,args) assert(not table.concat(args,' '):find('%-k'));return 0,json.stringify(doc)end}
 updater.install(api)
 assert(api.to_check_self().has_update==true)
