@@ -1,7 +1,15 @@
 name: Build PassWall APK packages
 
 on:
+  schedule:
+    # Daily at 03:23 Asia/Shanghai (UTC+8).
+    - cron: '23 19 * * *'
   workflow_dispatch:
+    inputs:
+      force_build:
+        description: Build even when the selected version is already published
+        type: boolean
+        default: false
   push:
     branches: [main]
     paths: ['passwall/**', '.github/workflows/passwall-apk.yml']
@@ -14,8 +22,49 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  prepare:
+    name: Check whether a build is needed
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      contents: write
+    outputs:
+      build: ${{ steps.select.outputs.build }}
+      revision: ${{ steps.select.outputs.revision }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          ref: ${{ github.ref }}
+      - name: Test upstream update decisions
+        run: python3 passwall/test-check-upstream.py
+      - name: Select pinned source and build decision
+        id: select
+        env:
+          GH_TOKEN: ${{ github.token }}
+          EVENT: ${{ github.event_name }}
+          FORCE_BUILD: ${{ inputs.force_build }}
+        shell: bash
+        run: |
+          if [ "$EVENT" = push ]; then
+            echo 'build=true' >> "$GITHUB_OUTPUT"
+          else
+            python3 passwall/check-upstream.py --write --repository "$GITHUB_REPOSITORY"
+            if ! git diff --quiet -- passwall/source.json; then
+              git config user.name 'github-actions[bot]'
+              git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+              git add passwall/source.json
+              git commit -m 'Update pinned PassWall upstream source'
+              git push origin "HEAD:$GITHUB_REF_NAME"
+            fi
+            if [ "$FORCE_BUILD" = true ]; then
+              echo 'build=true' >> "$GITHUB_OUTPUT"
+            fi
+          fi
+          echo "revision=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
   packages:
     name: PassWall APK (${{ matrix.device }})
+    needs: prepare
+    if: needs.prepare.outputs.build == 'true'
     runs-on: ubuntu-24.04
     timeout-minutes: 350
     strategy:
@@ -42,6 +91,8 @@ jobs:
     steps:
       - name: Checkout recipe
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          ref: ${{ needs.prepare.outputs.revision }}
       - name: Install build dependencies
         run: |
           sudo apt-get update
@@ -242,12 +293,14 @@ jobs:
 
   publish:
     name: Publish verified component updates
-    needs: packages
+    needs: [prepare, packages]
     runs-on: ubuntu-24.04
     permissions:
       contents: write
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          ref: ${{ needs.prepare.outputs.revision }}
       - uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131
         with:
           pattern: passwall-apk-*

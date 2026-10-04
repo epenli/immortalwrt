@@ -1,6 +1,6 @@
 {
   "repository": "Openwrt-Passwall/openwrt-passwall",
-  "commit": "3f3d47b5c0623ece73c4f4ce14f0f873965be67f",
-  "version": "26.9.27",
-  "sha256": "5db68fb4dcc7539551d2cb0cf8178a636452c66dca700320b150b1111c130d0b"
+  "commit": "2ccbd9a14b6364e14a49c28c4bb40fbf6695a116",
+  "version": "26.10.3",
+  "sha256": "f9006f28d95c15ae926ed0eecf2fb7d953570a24f5ef93a853ba684e44685b9e"
 }
