@@ -13,6 +13,9 @@ on:
   push:
     branches: [main]
     paths: ['passwall/**', '.github/workflows/passwall-apk.yml']
+  pull_request:
+    branches: [main]
+    paths: ['passwall/**', '.github/workflows/passwall-apk.yml']
 
 permissions:
   contents: read
@@ -24,6 +27,7 @@ concurrency:
 jobs:
   prepare:
     name: Check whether a build is needed
+    if: github.event_name != 'pull_request'
     runs-on: ubuntu-24.04
     timeout-minutes: 10
     permissions:
@@ -35,8 +39,10 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
           ref: ${{ github.ref }}
-      - name: Test upstream update decisions
-        run: python3 passwall/test-check-upstream.py
+      - name: Test upstream update decisions and source adapter
+        run: |
+          python3 passwall/test-check-upstream.py
+          python3 passwall/test-install-source.py
       - name: Select pinned source and build decision
         id: select
         env:
@@ -61,10 +67,34 @@ jobs:
             fi
           fi
           echo "revision=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+  verify:
+    name: Verify pull-request recipe
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      contents: read
+    outputs:
+      revision: ${{ steps.revision.outputs.sha }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          persist-credentials: false
+      - name: Test pinned recipe without changing upstream pins
+        run: |
+          python3 passwall/test-check-upstream.py
+          python3 passwall/test-install-source.py
+      - name: Record the exact repair commit
+        id: revision
+        run: echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
   packages:
     name: PassWall APK (${{ matrix.device }})
-    needs: prepare
-    if: needs.prepare.outputs.build == 'true'
+    needs: [prepare, verify]
+    if: >-
+      !cancelled() &&
+      ((needs.prepare.result == 'success' && needs.prepare.outputs.build == 'true') ||
+       needs.verify.result == 'success')
     runs-on: ubuntu-24.04
     timeout-minutes: 350
     strategy:
@@ -92,7 +122,8 @@ jobs:
       - name: Checkout recipe
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
-          ref: ${{ needs.prepare.outputs.revision }}
+          ref: ${{ needs.verify.outputs.revision || needs.prepare.outputs.revision }}
+          persist-credentials: false
       - name: Install build dependencies
         run: |
           sudo apt-get update
@@ -293,6 +324,9 @@ jobs:
 
   publish:
     name: Publish verified component updates
+    if: >-
+      !cancelled() && github.event_name != 'pull_request' && github.ref == 'refs/heads/main' &&
+      needs.prepare.result == 'success' && needs.packages.result == 'success'
     needs: [prepare, packages]
     runs-on: ubuntu-24.04
     permissions:
