@@ -50,19 +50,35 @@ def install(root, live=False):
     controller = module.parent / 'controller/passwall.lua'
     text = controller.read_text()
     entry = '\tentry({"admin", "services", appname, "update_passwall"}, post("app_install")).leaf = true\n'
-    anchor = '\tentry({"admin", "services", appname, "check_passwall"}, call("app_check")).leaf = true'
+    legacy_check = '\tentry({"admin", "services", appname, "check_passwall"}, call("app_check")).leaf = true'
+    upstream_update = '\tentry({"admin", "services", appname, "update_" .. appname}, call("app_update")).leaf = true'
     if entry not in text:
-        if text.count(anchor) != 1: raise SystemExit('Unexpected PassWall controller')
-        text = text.replace(anchor, anchor + '\n' + entry)
+        if text.count(upstream_update) == 1 and legacy_check not in text:
+            # 26.10.4 already registers this URL. Replace it, never add a second route.
+            text = text.replace(upstream_update + '\n', entry)
+        elif text.count(legacy_check) == 1 and upstream_update not in text:
+            text = text.replace(legacy_check, legacy_check + '\n' + entry)
+        else:
+            raise SystemExit('Unexpected PassWall controller')
         text += '\nfunction app_install()\n http_write_json(api.install_self())\nend\n'
-        controller.write_text(text)
+    elif upstream_update in text or text.count(entry) != 1:
+        raise SystemExit('Conflicting PassWall update routes')
+    controller_text = text
     template = module.parent / 'view/passwall/app_update/app_version.htm'
     text = template.read_text()
-    anchor = '\t\t// Download file'
     patch = (recipe / 'self-update.js').read_text()
+    modern = 'function removePageNotice(app)' in text
+    anchor = '\t\tvar appInfo = appInfoList[app];' if modern else '\t\t// Download file'
+    if modern:
+        # New LuCI updates lock component buttons until removePageNotice(app).
+        # Insert before appInfo.i18n access: our verified manifest has no i18n field.
+        patch = patch.replace('removePageNotice();', 'removePageNotice(app);')
     if patch not in text:
-        if text.count(anchor) != 1: raise SystemExit('Unexpected PassWall update template')
-        template.write_text(text.replace(anchor, patch + '\n' + anchor))
+        if text.count(anchor) != 1:
+            raise SystemExit('Unexpected PassWall update template')
+        text = text.replace(anchor, patch + '\n' + anchor)
+    controller.write_text(controller_text)
+    template.write_text(text)
     text = page.read_text()
     label = 's.description = "更新来源：epenli/immortalwrt 已验证构建。本体与核心均可在此检查并更新；本体安装前自动备份配置，代理可能短暂中断。"\n'
     old_label = 's.description = "核心组件来源：epenli/immortalwrt 已验证构建。点击检查更新后安装；PassWall 本体仍通过 APK 更新。"\n'
