@@ -4,6 +4,7 @@ import shutil
 import sys
 import hashlib
 import json
+import re
 import tarfile
 import tempfile
 import urllib.request
@@ -52,17 +53,31 @@ def install(root, live=False):
     entry = '\tentry({"admin", "services", appname, "update_passwall"}, post("app_install")).leaf = true\n'
     anchor = '\tentry({"admin", "services", appname, "check_passwall"}, call("app_check")).leaf = true'
     if entry not in text:
-        if text.count(anchor) != 1: raise SystemExit('Unexpected PassWall controller')
-        text = text.replace(anchor, anchor + '\n' + entry)
+        upstream_route = '\tentry({"admin", "services", appname, "update_" .. appname}, call("app_update")).leaf = true'
+        if text.count(anchor) == 1:
+            text = text.replace(anchor, anchor + '\n' + entry)
+        elif text.count(upstream_route) == 1:
+            text = text.replace(upstream_route, entry.rstrip())
+        else:
+            raise SystemExit('Unexpected PassWall controller')
         text += '\nfunction app_install()\n http_write_json(api.install_self())\nend\n'
         controller.write_text(text)
+    text = controller.read_text()
+    marker = '-- Subscription pages removed by the local firmware recipe.'
+    pattern = r'^\s*entry\(\{"admin", "services", appname, "node_subscribe(?:_config)?"\}[^\n]*\n'
+    text, removed = re.subn(pattern, '', text, flags=re.M)
+    if removed != 2 and not (removed == 0 and marker in text):
+        raise SystemExit('PassWall subscription routes changed; adapter needs review')
+    if marker not in text:
+        text += '\n' + marker + '\n'
+    controller.write_text(text)
     template = module.parent / 'view/passwall/app_update/app_version.htm'
     text = template.read_text()
-    anchor = '\t\t// Download file'
+    anchor = '\t\tvar appUpdateUrl = \'<%=api.url("update_")%>\' + app;'
     patch = (recipe / 'self-update.js').read_text()
     if patch not in text:
         if text.count(anchor) != 1: raise SystemExit('Unexpected PassWall update template')
-        template.write_text(text.replace(anchor, patch + '\n' + anchor))
+        template.write_text(text.replace(anchor, anchor + '\n' + patch))
     text = page.read_text()
     label = 's.description = "更新来源：epenli/immortalwrt 已验证构建。本体与核心均可在此检查并更新；本体安装前自动备份配置，代理可能短暂中断。"\n'
     old_label = 's.description = "核心组件来源：epenli/immortalwrt 已验证构建。点击检查更新后安装；PassWall 本体仍通过 APK 更新。"\n'
